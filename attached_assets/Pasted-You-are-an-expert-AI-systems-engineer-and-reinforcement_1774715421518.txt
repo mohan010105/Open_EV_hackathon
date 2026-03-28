@@ -1,0 +1,250 @@
+You are an expert AI systems engineer and reinforcement learning developer.
+
+Generate a complete production-ready repository implementing an OpenEnv environment called:
+
+"AI Digital Workspace Assistant Environment"
+
+The environment simulates a digital productivity workspace where an AI agent must complete real-world office tasks such as reading emails, scheduling meetings, and organizing documents.
+
+The environment must follow the OpenEnv standard and support:
+
+reset()
+step(action)
+state()
+
+The project must be compatible with automated validators and HuggingFace Spaces deployment.
+
+---
+
+## PROJECT STRUCTURE
+
+Generate the following repository structure:
+
+openenv-workspace-env/
+
+├── openenv.yaml
+├── Dockerfile
+├── requirements.txt
+├── inference.py
+├── README.md
+├── server.py
+│
+├── env/
+│   ├── environment.py
+│   ├── state.py
+│   ├── actions.py
+│   ├── tasks.py
+│   └── graders.py
+│
+├── utils/
+│   ├── reward_engine.py
+│   └── helpers.py
+
+---
+
+## ENVIRONMENT DESIGN
+
+The environment simulates a digital workspace with:
+
+• Email inbox
+• Calendar events
+• Document folders
+• Task manager
+
+The state representation must include:
+
+{
+current_app,
+email_list,
+selected_email,
+calendar_events,
+documents,
+current_task
+}
+
+---
+
+## SUPPORTED ACTIONS
+
+open_email_inbox()
+search_email(sender)
+read_email(email_id)
+extract_meeting_details()
+create_calendar_event()
+move_document(folder_name)
+view_calendar()
+view_documents()
+noop()
+
+Each action must update the environment state logically.
+
+---
+
+## TASK DESIGN (Minimum 3 Tasks)
+
+Task 1: Email Retrieval
+
+Goal:
+Find an email from a specific sender.
+
+Example:
+"Find the email from Alex."
+
+---
+
+Task 2: Meeting Scheduling
+
+Goal:
+Read an email containing meeting details and schedule it in the calendar.
+
+Example:
+"Schedule a meeting with Alex tomorrow at 3pm."
+
+---
+
+Task 3: Document Organization
+
+Goal:
+Move a document to the correct folder.
+
+Example:
+Move "project_proposal.pdf" to the "Projects" folder.
+
+---
+
+## REWARD SYSTEM
+
+Implement a reward engine.
+
+Example scoring:
+
+Correct email found → +0.4
+Meeting scheduled correctly → +0.7
+Correct document organization → +1.0
+Incorrect action → −0.1
+Invalid navigation → −0.2
+
+Rewards must be normalized between 0.0 and 1.0.
+
+---
+
+## GRADERS
+
+Implement graders that evaluate each task.
+
+Return score values between:
+
+0.0 (failed)
+0.5 (partial)
+1.0 (complete)
+
+---
+
+## OPENENV CONFIGURATION
+
+Create openenv.yaml describing:
+
+environment name
+version
+available tasks
+grader mappings
+API endpoints
+
+---
+
+## FASTAPI SERVER
+
+Implement an API server exposing:
+
+POST /reset
+POST /step
+GET /state
+
+The API should interact with the environment class and return JSON responses.
+
+---
+
+## INFERENCE SCRIPT
+
+Create inference.py in the root directory.
+
+The script must:
+
+Use the OpenAI Python client.
+
+Read environment variables:
+
+API_BASE_URL
+MODEL_NAME
+HF_TOKEN
+
+Loop through an episode:
+
+1. reset environment
+2. get observation
+3. send observation to LLM
+4. receive action
+5. execute step(action)
+6. log rewards
+7. stop when done or max steps reached
+
+The script must complete within 20 minutes.
+
+---
+
+## DOCKER SUPPORT
+
+Provide a Dockerfile that:
+
+• uses python:3.10
+• installs requirements
+• launches FastAPI server
+• builds successfully with docker build
+
+---
+
+## DEPLOYMENT REQUIREMENTS
+
+The project must deploy successfully on HuggingFace Spaces.
+
+The API must respond to automated validation pings.
+
+Example:
+
+/reset → HTTP 200
+
+---
+
+## SYSTEM CONSTRAINTS
+
+The environment and inference script must run on:
+
+2 vCPU
+8GB RAM
+Runtime under 20 minutes
+
+---
+
+## CODE QUALITY
+
+Ensure:
+
+• modular architecture
+• type hints
+• docstrings
+• deterministic environment logic
+• reproducible runs
+• clear logging
+
+---
+
+## FINAL OUTPUT
+
+Generate working code for every file in the repository.
+
+Include a detailed README explaining:
+
+how the environment works
+how to run the project locally
+how to run inference.py
+how to deploy to HuggingFace Spaces
