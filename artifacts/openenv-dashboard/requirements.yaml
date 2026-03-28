@@ -1,0 +1,12 @@
+packages:
+  "framer-motion": "For smooth page transitions and interactive element animations"
+  "recharts": "For rendering reward and performance metrics charts"
+  "date-fns": "For formatting session history timestamps"
+  "lucide-react": "For beautiful consistent icons across the dashboard"
+  "clsx": "Utility for constructing className strings"
+  "tailwind-merge": "Utility for safely merging Tailwind CSS classes"
+
+images:
+  - path: "artifacts/openenv-dashboard/public/images/bg-mesh.png"
+    description: "Dark, professional abstract geometric mesh background with subtle deep blue and purple glowing nodes, suitable for an AI technology dashboard"
+    aspect_ratio: "16:9"

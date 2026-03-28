@@ -1,0 +1,161 @@
+You are an expert AI systems engineer.
+
+Build a complete OpenEnv environment project that allows an AI agent to interact with it using the standard reinforcement learning interface: reset(), step(action), and state().
+
+The environment should simulate a simple but realistic "AI Web Navigation Training Environment" where an agent learns to complete tasks on a simulated website.
+
+Requirements:
+
+1. Project Structure
+
+Generate a full repository with the following structure:
+
+project-root/
+├── openenv.yaml
+├── Dockerfile
+├── requirements.txt
+├── inference.py
+├── README.md
+├── server.py
+├── env/
+│   ├── environment.py
+│   ├── state.py
+│   ├── tasks.py
+│   └── graders.py
+
+2. Environment Design
+
+Create a simulated website navigation environment where the AI agent must:
+
+• open a homepage
+• search for a product
+• select the correct item
+• add it to cart
+
+The environment must implement:
+
+reset() → initialize environment
+step(action) → update environment based on action
+state() → return current observation
+
+Actions allowed:
+
+* open_home()
+* search_product(product_name)
+* click_product(product_id)
+* add_to_cart()
+* noop()
+
+The environment should return:
+
+{
+"observation": state,
+"reward": float,
+"done": boolean
+}
+
+3. Tasks
+
+Create at least 3 tasks with increasing difficulty:
+
+Task 1:
+Find the search bar and search for a product.
+
+Task 2:
+Find the correct product from search results.
+
+Task 3:
+Add the correct product to the cart.
+
+4. Reward Logic
+
+Design a logical scoring system:
+
+Correct navigation step → +0.2
+Correct product found → +0.5
+Add to cart successfully → +1.0
+Incorrect action → -0.1
+
+Ensure reward values are normalized between 0.0 and 1.0.
+
+5. Graders
+
+Implement automated graders in graders.py that evaluate whether a task is completed.
+
+Each grader must return a score between 0.0 and 1.0.
+
+6. API Server
+
+Create a FastAPI server exposing the following endpoints:
+
+POST /reset
+POST /step
+GET /state
+
+The API should interact with the environment and return JSON responses.
+
+7. OpenEnv Specification
+
+Create openenv.yaml describing:
+
+environment name
+version
+tasks
+API endpoints
+grader configuration
+
+Ensure it complies with the OpenEnv specification.
+
+8. Inference Script
+
+Create a script named inference.py in the root directory.
+
+This script must:
+
+• Use the OpenAI Python client
+• Read environment variables:
+
+API_BASE_URL
+MODEL_NAME
+HF_TOKEN
+
+• Reset the environment
+• Query the model for the next action
+• Execute step(action)
+• Continue until done or max steps reached
+
+The script must run in under 20 minutes and handle errors gracefully.
+
+9. Docker Support
+
+Provide a Dockerfile that:
+
+• uses python:3.10
+• installs requirements
+• exposes the API server
+• runs the environment server
+
+10. HuggingFace Deployment
+
+Ensure the project can be deployed to HuggingFace Spaces.
+
+The API must respond correctly to automated validation pings.
+
+11. Constraints
+
+The environment and inference script must run within:
+
+2 vCPU
+8GB RAM
+Runtime under 20 minutes
+
+12. Code Quality
+
+Ensure:
+
+• clear modular code
+• comments explaining logic
+• deterministic environment behavior
+• reproducible results
+
+Generate the entire project with working code for every file.

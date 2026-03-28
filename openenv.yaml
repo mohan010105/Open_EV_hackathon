@@ -1,0 +1,145 @@
+name: ai-web-navigation-env
+version: "1.0.0"
+description: >
+  OpenEnv AI Web Navigation Training Environment.
+  An RL environment where an agent learns to navigate a simulated
+  e-commerce website to complete shopping tasks.
+
+environment:
+  type: web_navigation
+  max_steps: 12
+  observation_space: structured
+  action_space: discrete
+
+actions:
+  - name: open_home
+    description: Navigate to the homepage
+    params: []
+  - name: search_product
+    description: Search for a product by name
+    params:
+      - name: product_name
+        type: string
+        required: true
+  - name: click_product
+    description: Click on a product from search results
+    params:
+      - name: product_id
+        type: string
+        required: true
+  - name: add_to_cart
+    description: Add the currently viewed product to cart
+    params: []
+  - name: noop
+    description: No operation, skip this step
+    params: []
+
+tasks:
+  - id: task_1
+    name: Basic Search
+    difficulty: easy
+    description: Navigate to homepage and search for a laptop
+    max_steps: 5
+  - id: task_2
+    name: Product Discovery
+    difficulty: medium
+    description: Find the correct product from search results
+    max_steps: 8
+  - id: task_3
+    name: Complete Purchase Flow
+    difficulty: hard
+    description: Complete full flow - home, search, select product, add to cart
+    max_steps: 12
+
+rewards:
+  correct_navigation: 0.2
+  correct_product_found: 0.5
+  add_to_cart_success: 1.0
+  incorrect_action: -0.1
+  normalization: "clamp(0.0, 1.0)"
+
+graders:
+  task_1:
+    type: search_completion
+    criteria:
+      - name: navigated_home
+        weight: 0.3
+      - name: searched_product
+        weight: 0.5
+      - name: correct_search_term
+        weight: 0.2
+    pass_threshold: 0.7
+  task_2:
+    type: product_selection
+    criteria:
+      - name: searched_for_product
+        weight: 0.2
+      - name: viewed_search_results
+        weight: 0.2
+      - name: clicked_correct_product
+        weight: 0.6
+    pass_threshold: 0.8
+  task_3:
+    type: purchase_completion
+    criteria:
+      - name: navigated_home
+        weight: 0.1
+      - name: searched_correct_product
+        weight: 0.2
+      - name: clicked_correct_product
+        weight: 0.3
+      - name: added_to_cart
+        weight: 0.4
+    pass_threshold: 1.0
+
+api:
+  base_url: /api
+  endpoints:
+    reset:
+      method: POST
+      path: /env/reset
+      description: Reset environment to initial state
+    step:
+      method: POST
+      path: /env/step
+      description: Execute an action and get next state
+    state:
+      method: GET
+      path: /env/state
+      description: Get current environment state
+    tasks:
+      method: GET
+      path: /env/tasks
+      description: List available tasks
+    sessions:
+      method: GET
+      path: /env/sessions
+      description: Get session history
+    health:
+      method: GET
+      path: /healthz
+      description: Health check endpoint
+
+validation:
+  health_check:
+    endpoint: /api/healthz
+    expected_status: 200
+    expected_body:
+      status: ok
+  reset_check:
+    endpoint: /api/env/reset
+    method: POST
+    expected_status: 200
+  state_check:
+    endpoint: /api/env/state
+    expected_status: 200
+
+resources:
+  max_cpu: 2
+  max_memory_gb: 8
+  max_runtime_minutes: 20
+
+deployment:
+  platform: huggingface_spaces
+  space_sdk: docker
+  port: 8080

@@ -1,15 +1,16 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: OpenEnv AI Web Navigation Training Environment API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: environment
+    description: RL Environment operations
 paths:
   /healthz:
     get:
@@ -24,6 +25,95 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /env/reset:
+    post:
+      operationId: resetEnvironment
+      tags: [environment]
+      summary: Reset the environment
+      description: Resets the RL environment to initial state and optionally selects a task
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResetRequest"
+      responses:
+        "200":
+          description: Environment reset successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StepResult"
+
+  /env/step:
+    post:
+      operationId: stepEnvironment
+      tags: [environment]
+      summary: Step the environment with an action
+      description: Executes an action in the environment and returns new observation/reward/done
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StepRequest"
+      responses:
+        "200":
+          description: Action executed successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StepResult"
+        "400":
+          description: Invalid action
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /env/state:
+    get:
+      operationId: getEnvironmentState
+      tags: [environment]
+      summary: Get current environment state
+      description: Returns the current observation/state of the environment
+      responses:
+        "200":
+          description: Current environment state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvironmentState"
+
+  /env/tasks:
+    get:
+      operationId: listTasks
+      tags: [environment]
+      summary: List available tasks
+      description: Returns all available tasks with their descriptions and difficulty
+      responses:
+        "200":
+          description: List of tasks
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaskList"
+
+  /env/sessions:
+    get:
+      operationId: getSessions
+      tags: [environment]
+      summary: Get session history
+      description: Returns history of all environment sessions with metrics
+      responses:
+        "200":
+          description: Session history
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionHistory"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +124,218 @@ components:
       required:
         - status
 
+    ResetRequest:
+      type: object
+      properties:
+        taskId:
+          type: string
+          description: Optional task ID to use for this session (defaults to random)
+        seed:
+          type: integer
+          description: Optional random seed for reproducibility
+
+    StepRequest:
+      type: object
+      properties:
+        action:
+          type: string
+          description: Action to execute (open_home, search_product, click_product, add_to_cart, noop)
+        params:
+          type: object
+          description: Action parameters (e.g., product_name for search_product)
+          additionalProperties: true
+      required:
+        - action
+
+    StepResult:
+      type: object
+      properties:
+        observation:
+          $ref: "#/components/schemas/Observation"
+        reward:
+          type: number
+          description: Reward received for this step (normalized 0.0-1.0)
+        done:
+          type: boolean
+          description: Whether the episode is complete
+        info:
+          type: object
+          description: Additional info about the step
+          additionalProperties: true
+      required:
+        - observation
+        - reward
+        - done
+
+    Observation:
+      type: object
+      properties:
+        page:
+          type: string
+          description: Current page the agent is on (home, search_results, product_detail, cart)
+        available_actions:
+          type: array
+          items:
+            type: string
+          description: List of actions available from current state
+        search_results:
+          type: array
+          items:
+            $ref: "#/components/schemas/Product"
+          description: Products visible in search results
+        current_product:
+          $ref: "#/components/schemas/Product"
+          description: Currently viewed product (if on product page)
+        cart_items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Product"
+          description: Items currently in cart
+        task_description:
+          type: string
+          description: Description of the current task
+        task_id:
+          type: string
+          description: ID of the current task
+        step_count:
+          type: integer
+          description: Number of steps taken in this episode
+        total_reward:
+          type: number
+          description: Cumulative reward so far
+      required:
+        - page
+        - available_actions
+        - task_description
+        - task_id
+        - step_count
+        - total_reward
+
+    Product:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        price:
+          type: number
+        category:
+          type: string
+        description:
+          type: string
+        rating:
+          type: number
+      required:
+        - id
+        - name
+        - price
+        - category
+
+    EnvironmentState:
+      type: object
+      properties:
+        observation:
+          $ref: "#/components/schemas/Observation"
+        session_id:
+          type: string
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+      required:
+        - observation
+        - session_id
+        - is_active
+
+    TaskList:
+      type: object
+      properties:
+        tasks:
+          type: array
+          items:
+            $ref: "#/components/schemas/Task"
+      required:
+        - tasks
+
+    Task:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        difficulty:
+          type: string
+          enum: [easy, medium, hard]
+        target_product:
+          type: string
+        max_steps:
+          type: integer
+        reward_breakdown:
+          type: object
+          additionalProperties: true
+      required:
+        - id
+        - name
+        - description
+        - difficulty
+        - target_product
+        - max_steps
+
+    SessionHistory:
+      type: object
+      properties:
+        sessions:
+          type: array
+          items:
+            $ref: "#/components/schemas/SessionRecord"
+        total_sessions:
+          type: integer
+      required:
+        - sessions
+        - total_sessions
+
+    SessionRecord:
+      type: object
+      properties:
+        session_id:
+          type: string
+        task_id:
+          type: string
+        task_name:
+          type: string
+        total_reward:
+          type: number
+        steps_taken:
+          type: integer
+        completed:
+          type: boolean
+        grader_score:
+          type: number
+        started_at:
+          type: string
+        ended_at:
+          type: string
+      required:
+        - session_id
+        - task_id
+        - task_name
+        - total_reward
+        - steps_taken
+        - completed
+        - grader_score
+        - started_at
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+      required:
+        - error
+        - message
