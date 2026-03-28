@@ -6,11 +6,13 @@
  * OpenAPI spec version: 0.2.0
  */
 
-export interface Product {
+export interface Email {
   id: string;
-  name: string;
-  price: number;
-  category: string;
-  description?: string;
-  rating?: number;
+  sender: string;
+  sender_email: string;
+  subject: string;
+  body?: string;
+  timestamp: string;
+  read: boolean;
+  has_meeting_details?: boolean;
 }

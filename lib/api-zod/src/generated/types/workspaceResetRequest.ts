@@ -6,4 +6,7 @@
  * OpenAPI spec version: 0.2.0
  */
 
-export type TaskRewardBreakdown = { [key: string]: unknown };
+export interface WorkspaceResetRequest {
+  taskId?: string;
+  seed?: number;
+}

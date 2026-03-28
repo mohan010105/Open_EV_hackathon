@@ -6,4 +6,11 @@
  * OpenAPI spec version: 0.2.0
  */
 
-export type TaskRewardBreakdown = { [key: string]: unknown };
+export interface Document {
+  id: string;
+  name: string;
+  folder: string;
+  type: string;
+  size?: string;
+  modified?: string;
+}

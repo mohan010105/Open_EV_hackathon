@@ -6,10 +6,10 @@
  * OpenAPI spec version: 0.2.0
  */
 
-export type TaskDifficulty =
-  (typeof TaskDifficulty)[keyof typeof TaskDifficulty];
+export type WorkspaceTaskDifficulty =
+  (typeof WorkspaceTaskDifficulty)[keyof typeof WorkspaceTaskDifficulty];
 
-export const TaskDifficulty = {
+export const WorkspaceTaskDifficulty = {
   easy: "easy",
   medium: "medium",
   hard: "hard",

@@ -5,5 +5,8 @@
  * OpenEnv — Web Navigation + Workspace Assistant Training Environment API
  * OpenAPI spec version: 0.2.0
  */
+import type { WorkspaceTask } from "./workspaceTask";
 
-export type TaskRewardBreakdown = { [key: string]: unknown };
+export interface WorkspaceTaskList {
+  tasks: WorkspaceTask[];
+}

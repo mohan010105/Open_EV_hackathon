@@ -6,4 +6,4 @@
  * OpenAPI spec version: 0.2.0
  */
 
-export type TaskRewardBreakdown = { [key: string]: unknown };
+export type WorkspaceStepRequestParams = { [key: string]: unknown };

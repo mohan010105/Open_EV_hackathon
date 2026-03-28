@@ -5,10 +5,10 @@
  * OpenEnv — Web Navigation + Workspace Assistant Training Environment API
  * OpenAPI spec version: 0.2.0
  */
-import type { Observation } from "./observation";
+import type { WorkspaceObservation } from "./workspaceObservation";
 
-export interface EnvironmentState {
-  observation: Observation;
+export interface WorkspaceEnvironmentState {
+  observation: WorkspaceObservation;
   session_id: string;
   is_active: boolean;
   created_at?: string;

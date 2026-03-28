@@ -6,4 +6,12 @@
  * OpenAPI spec version: 0.2.0
  */
 
-export type TaskRewardBreakdown = { [key: string]: unknown };
+export interface CalendarEvent {
+  id: string;
+  title: string;
+  date: string;
+  time: string;
+  attendees?: string[];
+  location?: string;
+  created_from_email?: boolean;
+}
