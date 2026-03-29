@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OpenEnv — Workspace Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <style>
+    /* ── Reset & Base ────────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:       #0d1117;
+      --surface:  #161b22;
+      --border:   rgba(255,255,255,0.08);
+      --text:     #e6edf3;
+      --muted:    #8b949e;
+      --primary:  #63b3ed;
+      --accent:   #9f7aea;
+      --green:    #56d364;
+      --red:      #f85149;
+      --yellow:   #e3b341;
+      --radius:   12px;
+    }
+    html, body { height: 100%; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+    a { color: var(--primary); text-decoration: none; }
+
+    /* ── Layout ──────────────────────────────────────────────────────────── */
+    .topbar {
+      height: 56px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      padding: 0 24px;
+      gap: 12px;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    .topbar-logo { font-size: 18px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+    .topbar-logo span { font-size: 22px; }
+    .topbar-sep { flex: 1; }
+    .topbar-api { font-size: 11px; color: var(--muted); font-family: monospace; }
+
+    .main { padding: 24px; max-width: 1440px; margin: 0 auto; }
+
+    /* ── Status Bar ──────────────────────────────────────────────────────── */
+    .status-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 14px;
+      margin-bottom: 22px;
+    }
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px 20px;
+    }
+    .stat-label { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: 6px; }
+    .stat-value { font-size: 20px; font-weight: 700; }
+
+    /* ── Controls ────────────────────────────────────────────────────────── */
+    .controls {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 22px;
+      flex-wrap: wrap;
+    }
+    select, button {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 8px;
+      padding: 8px 16px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: background .15s;
+    }
+    button:hover { background: rgba(255,255,255,0.06); }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    #btn-reset { background: rgba(99,179,237,0.15); border-color: var(--primary); color: var(--primary); font-weight: 600; }
+    #btn-reset:hover:not(:disabled) { background: rgba(99,179,237,0.25); }
+
+    /* ── Progress Bar ────────────────────────────────────────────────────── */
+    .progress-wrap { margin-bottom: 22px; }
+    .progress-header { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+    .progress-track { height: 8px; background: rgba(255,255,255,0.06); border-radius: 999px; overflow: hidden; }
+    .progress-fill  { height: 100%; background: linear-gradient(90deg, var(--primary), var(--accent)); border-radius: 999px; transition: width .4s; }
+
+    /* ── Grid ────────────────────────────────────────────────────────────── */
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+    .grid-full { grid-column: 1 / -1; }
+
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    .panel-header {
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--border);
+      font-size: 13px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .panel-body { padding: 16px 18px; }
+
+    /* ── List Items ──────────────────────────────────────────────────────── */
+    .list-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .list-item:last-child { border-bottom: none; }
+    .list-item.unread { background: rgba(99,179,237,0.03); }
+    .list-item.highlight { background: rgba(159,122,234,0.06); }
+    .list-item-body { flex: 1; min-width: 0; }
+    .list-item-body strong { display: block; font-size: 13px; }
+    .subject { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
+    .ts { font-size: 11px; color: var(--muted); white-space: nowrap; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 4px; flex-shrink: 0; }
+    .dot-unread { background: var(--primary); }
+    .dot-read   { border: 1px solid var(--muted); }
+    .doc-icon { font-size: 18px; flex-shrink: 0; margin-top: 2px; }
+    .cal-date { font-size: 11px; font-family: monospace; color: var(--accent); white-space: nowrap; padding-top: 2px; }
+
+    /* ── Email detail ────────────────────────────────────────────────────── */
+    .email-detail { font-size: 13px; }
+    .email-meta { padding: 4px 0; color: var(--muted); }
+    .email-meta b { color: var(--text); }
+    .email-body {
+      margin-top: 12px;
+      background: rgba(0,0,0,0.2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px;
+      font-size: 12px;
+      white-space: pre-wrap;
+      font-family: "SFMono-Regular", Consolas, monospace;
+      color: var(--muted);
+      max-height: 200px;
+      overflow-y: auto;
+    }
+
+    /* ── Badges ──────────────────────────────────────────────────────────── */
+    .badge { display: inline-flex; align-items: center; font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+    .badge-active { background: rgba(86,211,100,0.15); color: var(--green); border: 1px solid rgba(86,211,100,0.3); }
+    .badge-idle   { background: rgba(255,255,255,0.05); color: var(--muted); border: 1px solid var(--border); }
+    .badge-mtg    { background: rgba(159,122,234,0.15); color: var(--accent); border: 1px solid rgba(159,122,234,0.3); }
+    .badge-new    { background: rgba(99,179,237,0.15);  color: var(--primary); border: 1px solid rgba(99,179,237,0.3); font-size: 10px; }
+
+    /* ── Actions ─────────────────────────────────────────────────────────── */
+    .action-chip {
+      display: inline-block;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 3px 10px;
+      font-size: 11px;
+      font-family: monospace;
+      color: var(--muted);
+      margin: 2px;
+    }
+
+    /* ── Timeline ────────────────────────────────────────────────────────── */
+    .timeline { display: flex; flex-direction: column; gap: 6px; max-height: 380px; overflow-y: auto; }
+    .timeline-step {
+      display: grid;
+      grid-template-columns: 30px 1fr auto auto auto;
+      gap: 8px;
+      align-items: center;
+      padding: 8px 12px;
+      background: rgba(255,255,255,0.02);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 12px;
+    }
+    .timeline-step.step-invalid { border-color: rgba(248,81,73,0.3); background: rgba(248,81,73,0.04); }
+    .step-num    { color: var(--muted); font-family: monospace; text-align: right; }
+    .step-action { font-family: monospace; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .step-reward { font-family: monospace; font-weight: 700; white-space: nowrap; }
+    .step-reward.pos { color: var(--green); }
+    .step-reward.neg { color: var(--red); }
+    .step-total  { font-family: monospace; color: var(--primary); white-space: nowrap; }
+    .step-reason { color: var(--muted); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    /* ── Chart ───────────────────────────────────────────────────────────── */
+    .chart-wrap { height: 260px; position: relative; }
+
+    /* ── Misc ────────────────────────────────────────────────────────────── */
+    .empty { color: var(--muted); font-size: 13px; text-align: center; padding: 24px 0; }
+    .meta-row { display: flex; gap: 24px; flex-wrap: wrap; padding-bottom: 8px; border-bottom: 1px solid var(--border); margin-bottom: 12px; }
+    .meta-item { font-size: 12px; }
+    .meta-item b { color: var(--text); }
+    .meta-item span { color: var(--muted); }
+  </style>
+</head>
+<body>
+
+<!-- ── Top bar ──────────────────────────────────────────────────────────────── -->
+<header class="topbar">
+  <div class="topbar-logo"><span>🗂️</span> OpenEnv Workspace</div>
+  <div class="topbar-sep"></div>
+  <span id="val-active" class="badge badge-idle">Idle</span>
+  <span class="topbar-api">GET /state · POST /step · POST /reset</span>
+</header>
+
+<div class="main">
+
+  <!-- ── Status cards ─────────────────────────────────────────────────────── -->
+  <div class="status-row">
+    <div class="stat-card">
+      <div class="stat-label">Current App</div>
+      <div class="stat-value" id="val-app">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Active Task</div>
+      <div class="stat-value" style="font-size:13px;padding-top:4px" id="val-task">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Step</div>
+      <div class="stat-value" id="val-step">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Total Reward</div>
+      <div class="stat-value" style="color:var(--green)" id="val-reward">0.000</div>
+    </div>
+  </div>
+
+  <!-- ── Progress bar ─────────────────────────────────────────────────────── -->
+  <div class="progress-wrap">
+    <div class="progress-header">
+      <span>Task Progress</span>
+      <span id="progress-pct">0.0%</span>
+    </div>
+    <div class="progress-track">
+      <div class="progress-fill" id="progress-bar" style="width:0%"></div>
+    </div>
+  </div>
+
+  <!-- ── Controls ─────────────────────────────────────────────────────────── -->
+  <div class="controls">
+    <select id="task-select">
+      <option value="">Random Task</option>
+      <option value="ws_task_1">Task 1 — Email Retrieval (Easy)</option>
+      <option value="ws_task_2">Task 2 — Meeting Scheduling (Medium)</option>
+      <option value="ws_task_3">Task 3 — Document Organization (Hard)</option>
+    </select>
+    <button id="btn-reset">Reset Environment</button>
+    <a href="/docs" target="_blank"><button type="button">API Docs ↗</button></a>
+  </div>
+
+  <!-- ── Main grid ────────────────────────────────────────────────────────── -->
+  <div class="grid">
+
+    <!-- Email Inbox -->
+    <div class="panel">
+      <div class="panel-header">📧 Email Inbox</div>
+      <div class="panel-body">
+        <div id="email-list"><p class="empty">Loading…</p></div>
+      </div>
+    </div>
+
+    <!-- Open email / Calendar / Documents tabbed-ish -->
+    <div class="panel">
+      <div class="panel-header">📨 Open Email</div>
+      <div class="panel-body">
+        <div id="selected-email"><p class="empty">No email selected</p></div>
+      </div>
+    </div>
+
+    <!-- Calendar -->
+    <div class="panel">
+      <div class="panel-header">📅 Calendar</div>
+      <div class="panel-body">
+        <div id="calendar-list"><p class="empty">Loading…</p></div>
+      </div>
+    </div>
+
+    <!-- Documents -->
+    <div class="panel">
+      <div class="panel-header">📁 Documents</div>
+      <div class="panel-body">
+        <div id="doc-list"><p class="empty">Loading…</p></div>
+      </div>
+    </div>
+
+    <!-- Available actions -->
+    <div class="panel grid-full">
+      <div class="panel-header">⚡ Available Actions</div>
+      <div class="panel-body">
+        <div id="actions-list"></div>
+      </div>
+    </div>
+
+    <!-- Reward chart -->
+    <div class="panel grid-full">
+      <div class="panel-header">📈 Reward Progression</div>
+      <div class="panel-body">
+        <div class="meta-row">
+          <div class="meta-item"><b id="val-episode-task">—</b> <span>task</span></div>
+          <div class="meta-item"><b id="val-episode-steps">0</b> <span>steps</span></div>
+          <div class="meta-item"><b id="val-episode-status">—</b></div>
+        </div>
+        <div class="chart-wrap">
+          <canvas id="reward-chart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Action timeline -->
+    <div class="panel grid-full">
+      <div class="panel-header">⏱️ Action Timeline</div>
+      <div class="panel-body">
+        <div class="timeline" id="timeline">
+          <p class="empty">No steps yet — reset and start an episode.</p>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /.grid -->
+</div><!-- /.main -->
+
+<script src="/dashboard/dashboard.js"></script>
+</body>
+</html>

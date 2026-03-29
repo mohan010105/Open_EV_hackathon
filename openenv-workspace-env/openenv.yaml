@@ -1,9 +1,9 @@
 name: ai-workspace-assistant
-version: "1.0.0"
+version: "2.0.0"
 description: >
   An OpenEnv-compatible reinforcement learning environment that simulates
   a digital productivity workspace. The AI agent performs tasks such as
-  reading emails, scheduling meetings, and organizing documents.
+  reading emails, scheduling meetings, and organising documents.
 
 author: OpenEnv
 license: MIT
@@ -13,18 +13,26 @@ environment:
   observation_space: structured_json
   action_space: discrete_named
 
+# ── API Endpoints ─────────────────────────────────────────────────────────────
 endpoints:
-  reset: POST /reset
-  step:  POST /step
-  state: GET  /state
+  dashboard:     GET  /
+  reset:         POST /reset
+  step:          POST /step
+  state:         GET  /state
+  episode_replay: GET /episode_replay
+  all_episodes:  GET  /episodes
+  tasks:         GET  /tasks
+  sessions:      GET  /sessions
+  health:        GET  /healthz
 
+# ── Tasks ─────────────────────────────────────────────────────────────────────
 tasks:
   - id: ws_task_1
     name: Email Retrieval
     difficulty: easy
     grader: graders.grade_email_retrieval
     max_steps: 6
-    description: "Find the email from Alex Johnson about the team meeting."
+    description: "Find and read the email from Alex Johnson."
 
   - id: ws_task_2
     name: Meeting Scheduling
@@ -40,27 +48,49 @@ tasks:
     max_steps: 8
     description: "Move project_proposal.pdf to the Projects folder."
 
+# ── Actions ───────────────────────────────────────────────────────────────────
 actions:
-  - open_email_inbox
-  - search_email
-  - read_email
-  - create_calendar_event
-  - move_document
-  - view_calendar
-  - view_documents
-  - noop
+  - name: open_email_inbox
+    params: []
+  - name: search_email
+    params: [sender]
+  - name: read_email
+    params: [email_id]
+  - name: extract_meeting_details
+    params: []
+  - name: create_calendar_event
+    params: []
+  - name: move_document
+    params: [document_id, folder]
+  - name: view_calendar
+    params: []
+  - name: view_documents
+    params: []
+  - name: noop
+    params: []
 
+# ── Reward Schema ─────────────────────────────────────────────────────────────
 reward_schema:
-  correct_action: +0.3
-  task_completion: +1.0
-  wrong_action:    -0.1
+  correct_navigation:  +0.20
+  correct_action:      +0.30
+  task_completion:     +1.00
+  incorrect_action:    -0.10
+  invalid_navigation:  -0.20
+  reward_range: [0.0, 1.0]
 
+# ── Graders ───────────────────────────────────────────────────────────────────
 graders:
   score_range: [0.0, 1.0]
   partial_credit: true
+  scores:
+    failure: 0.0
+    partial: 0.5
+    success: 1.0
 
+# ── Deployment ────────────────────────────────────────────────────────────────
 deployment:
   platform: huggingface_spaces
   runtime: python3.10
   port: 7860
-  health_check: GET /state
+  health_check: GET /healthz
+  validator_ping: POST /reset

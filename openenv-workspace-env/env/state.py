@@ -3,11 +3,7 @@ State representation for the Workspace Assistant environment.
 All state is plain Python dicts/lists for easy JSON serialisation.
 """
 
-from dataclasses import dataclass, field
-from typing import Optional
-
-
-# ── Seed data ─────────────────────────────────────────────────────────────────
+# ── Seed data ──────────────────────────────────────────────────────────────────
 
 SEED_EMAILS = [
     {
@@ -56,7 +52,7 @@ SEED_EMAILS = [
         "id": "email_004",
         "sender": "Mike Torres",
         "sender_email": "mike.torres@company.com",
-        "subject": "Budget Planning Sync - Friday 10am",
+        "subject": "Budget Planning Sync — Friday 10am",
         "body": "Hey,\n\nCan we sync on budget planning Friday at 10am?\n\nThanks,\nMike",
         "timestamp": "2026-03-27T11:00:00Z",
         "read": False,
@@ -105,12 +101,45 @@ SEED_DOCUMENTS = [
 
 AVAILABLE_FOLDERS = ["Projects", "HR", "Finance", "Engineering", "Archive", "Inbox"]
 
-# ── Active-context apps and their permitted actions ────────────────────────────
+# ── Per-app permitted actions ─────────────────────────────────────────────────
+# The environment enforces that only these actions can be taken from each app.
+# Attempting any other action results in an invalid_navigation penalty.
 
 APP_ACTIONS: dict[str, list[str]] = {
-    "email_inbox":   ["open_email_inbox", "search_email", "read_email", "view_calendar", "view_documents", "noop"],
-    "email_detail":  ["open_email_inbox", "create_calendar_event", "view_calendar", "view_documents", "noop"],
-    "calendar":      ["view_calendar", "create_calendar_event", "open_email_inbox", "view_documents", "noop"],
-    "documents":     ["view_documents", "move_document", "open_email_inbox", "view_calendar", "noop"],
-    "task_manager":  ["open_email_inbox", "view_calendar", "view_documents", "noop"],
+    "email_inbox": [
+        "open_email_inbox",
+        "search_email",
+        "read_email",
+        "view_calendar",
+        "view_documents",
+        "noop",
+    ],
+    "email_detail": [
+        "open_email_inbox",
+        "extract_meeting_details",
+        "create_calendar_event",
+        "view_calendar",
+        "view_documents",
+        "noop",
+    ],
+    "calendar": [
+        "view_calendar",
+        "create_calendar_event",
+        "open_email_inbox",
+        "view_documents",
+        "noop",
+    ],
+    "documents": [
+        "view_documents",
+        "move_document",
+        "open_email_inbox",
+        "view_calendar",
+        "noop",
+    ],
+    "task_manager": [
+        "open_email_inbox",
+        "view_calendar",
+        "view_documents",
+        "noop",
+    ],
 }
