@@ -1,19 +1,21 @@
 """
-State representation for the Workspace Assistant environment.
-All state is plain Python dicts/lists for easy JSON serialisation.
+Seed data and configuration for the Workspace Assistant environment.
+
+Difficulty levels control how many items appear per episode:
+  easy   →  3 emails,  3 documents  (minimal distractors)
+  medium →  5 emails,  5 documents  (moderate complexity)
+  hard   →  8 emails,  8 documents  (many distractors)
 """
 
-# ── Seed data ──────────────────────────────────────────────────────────────────
-
-SEED_EMAILS = [
+# ── Full email pool (8 items) ──────────────────────────────────────────────────
+ALL_EMAILS = [
     {
         "id": "email_001",
         "sender": "Alex Johnson",
         "sender_email": "alex.johnson@company.com",
         "subject": "Team Meeting Tomorrow at 3pm",
         "body": (
-            "Hi,\n\n"
-            "I wanted to confirm our team meeting scheduled for tomorrow (Thursday) "
+            "Hi,\n\nI wanted to confirm our team meeting scheduled for tomorrow (Thursday) "
             "at 3:00 PM in Conference Room B.\n\n"
             "Agenda:\n- Q3 progress review\n- Project roadmap\n- Team updates\n\n"
             "Please bring your status reports.\n\nBest,\nAlex"
@@ -68,9 +70,54 @@ SEED_EMAILS = [
         "read": True,
         "has_meeting_details": False,
     },
+    # ── Hard-mode distractors ──────────────────────────────────────────────
+    {
+        "id": "email_006",
+        "sender": "Newsletter Bot",
+        "sender_email": "noreply@marketing.com",
+        "subject": "Your Weekly Digest",
+        "body": "Here's what happened in tech this week...",
+        "timestamp": "2026-03-26T08:00:00Z",
+        "read": False,
+        "has_meeting_details": False,
+    },
+    {
+        "id": "email_007",
+        "sender": "Priya Sharma",
+        "sender_email": "priya.sharma@company.com",
+        "subject": "Design Review — Wednesday 2pm",
+        "body": "Hi,\n\nDesign review is Wednesday at 2pm in Room A.\n\nPriya",
+        "timestamp": "2026-03-25T17:30:00Z",
+        "read": False,
+        "has_meeting_details": True,
+    },
+    {
+        "id": "email_008",
+        "sender": "Finance Alerts",
+        "sender_email": "alerts@finance.com",
+        "subject": "Invoice #4821 — Action Required",
+        "body": "Please approve invoice #4821 by end of week.",
+        "timestamp": "2026-03-25T11:00:00Z",
+        "read": False,
+        "has_meeting_details": False,
+    },
 ]
 
-SEED_CALENDAR_EVENTS = [
+# ── Full document pool (8 items) ───────────────────────────────────────────────
+ALL_DOCUMENTS = [
+    {"id": "doc_001", "name": "project_proposal.pdf",   "folder": "Inbox",       "type": "PDF",         "size": "2.4 MB"},
+    {"id": "doc_002", "name": "leave_policy_2026.pdf",  "folder": "Inbox",       "type": "PDF",         "size": "1.1 MB"},
+    {"id": "doc_003", "name": "q1_report.xlsx",          "folder": "Finance",     "type": "Spreadsheet", "size": "3.8 MB"},
+    {"id": "doc_004", "name": "onboarding.docx",         "folder": "HR",          "type": "Document",    "size": "0.5 MB"},
+    {"id": "doc_005", "name": "architecture.png",        "folder": "Engineering", "type": "Image",       "size": "4.2 MB"},
+    # ── Hard-mode distractors ──────────────────────────────────────────────
+    {"id": "doc_006", "name": "meeting_notes_q1.docx",   "folder": "Inbox",       "type": "Document",    "size": "0.3 MB"},
+    {"id": "doc_007", "name": "brand_guidelines.pdf",    "folder": "Inbox",       "type": "PDF",         "size": "6.1 MB"},
+    {"id": "doc_008", "name": "security_policy.pdf",     "folder": "Inbox",       "type": "PDF",         "size": "1.8 MB"},
+]
+
+# ── Calendar seed ──────────────────────────────────────────────────────────────
+ALL_CALENDAR_EVENTS = [
     {
         "id": "cal_001",
         "title": "Daily Standup",
@@ -89,22 +136,43 @@ SEED_CALENDAR_EVENTS = [
         "location": "Main Boardroom",
         "created_from_email": False,
     },
-]
-
-SEED_DOCUMENTS = [
-    {"id": "doc_001", "name": "project_proposal.pdf", "folder": "Inbox",       "type": "PDF",         "size": "2.4 MB"},
-    {"id": "doc_002", "name": "leave_policy_2026.pdf","folder": "Inbox",       "type": "PDF",         "size": "1.1 MB"},
-    {"id": "doc_003", "name": "q1_report.xlsx",        "folder": "Finance",     "type": "Spreadsheet", "size": "3.8 MB"},
-    {"id": "doc_004", "name": "onboarding.docx",       "folder": "HR",          "type": "Document",    "size": "0.5 MB"},
-    {"id": "doc_005", "name": "architecture.png",      "folder": "Engineering", "type": "Image",       "size": "4.2 MB"},
+    # Hard-mode extras
+    {
+        "id": "cal_003",
+        "title": "1:1 with Manager",
+        "date": "2026-03-31",
+        "time": "10:00",
+        "attendees": ["Manager"],
+        "location": "Office",
+        "created_from_email": False,
+    },
 ]
 
 AVAILABLE_FOLDERS = ["Projects", "HR", "Finance", "Engineering", "Archive", "Inbox"]
 
-# ── Per-app permitted actions ─────────────────────────────────────────────────
-# The environment enforces that only these actions can be taken from each app.
-# Attempting any other action results in an invalid_navigation penalty.
+# ── Difficulty bands ───────────────────────────────────────────────────────────
+DIFFICULTY_CONFIG: dict[str, dict] = {
+    "easy": {
+        "email_count":    3,
+        "document_count": 3,
+        "calendar_count": 1,
+        "label":          "Easy",
+    },
+    "medium": {
+        "email_count":    5,
+        "document_count": 5,
+        "calendar_count": 2,
+        "label":          "Medium",
+    },
+    "hard": {
+        "email_count":    8,
+        "document_count": 8,
+        "calendar_count": 3,
+        "label":          "Hard",
+    },
+}
 
+# ── Per-app permitted actions ─────────────────────────────────────────────────
 APP_ACTIONS: dict[str, list[str]] = {
     "email_inbox": [
         "open_email_inbox",
@@ -143,3 +211,8 @@ APP_ACTIONS: dict[str, list[str]] = {
         "noop",
     ],
 }
+
+# Convenience aliases kept for backwards compatibility
+SEED_EMAILS          = ALL_EMAILS[:5]
+SEED_CALENDAR_EVENTS = ALL_CALENDAR_EVENTS[:2]
+SEED_DOCUMENTS       = ALL_DOCUMENTS[:5]

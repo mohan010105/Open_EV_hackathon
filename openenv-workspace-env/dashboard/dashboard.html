@@ -6,314 +6,245 @@
   <title>OpenEnv — Workspace Dashboard</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
   <style>
-    /* ── Reset & Base ────────────────────────────────────────────────────── */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
-      --bg:       #0d1117;
-      --surface:  #161b22;
-      --border:   rgba(255,255,255,0.08);
-      --text:     #e6edf3;
-      --muted:    #8b949e;
-      --primary:  #63b3ed;
-      --accent:   #9f7aea;
-      --green:    #56d364;
-      --red:      #f85149;
-      --yellow:   #e3b341;
-      --radius:   12px;
+      --bg:      #0d1117;
+      --surface: #161b22;
+      --surface2:#1c2128;
+      --border:  rgba(255,255,255,0.08);
+      --text:    #e6edf3;
+      --muted:   #8b949e;
+      --primary: #63b3ed;
+      --accent:  #9f7aea;
+      --green:   #56d364;
+      --red:     #f85149;
+      --yellow:  #e3b341;
+      --orange:  #f0883e;
+      --radius:  12px;
     }
     html, body { height: 100%; }
-    body {
-      background: var(--bg);
-      color: var(--text);
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
-      font-size: 14px;
-      line-height: 1.5;
-    }
-    a { color: var(--primary); text-decoration: none; }
+    body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; font-size: 14px; line-height: 1.5; }
 
-    /* ── Layout ──────────────────────────────────────────────────────────── */
-    .topbar {
-      height: 56px;
-      background: var(--surface);
-      border-bottom: 1px solid var(--border);
-      display: flex;
-      align-items: center;
-      padding: 0 24px;
-      gap: 12px;
-      position: sticky;
-      top: 0;
-      z-index: 10;
-    }
-    .topbar-logo { font-size: 18px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
-    .topbar-logo span { font-size: 22px; }
-    .topbar-sep { flex: 1; }
+    /* ── Topbar ── */
+    .topbar { height: 52px; background: var(--surface); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 20px; gap: 12px; position: sticky; top: 0; z-index: 10; }
+    .logo { font-size: 17px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+    .logo-icon { font-size: 20px; }
+    .sep { flex: 1; }
     .topbar-api { font-size: 11px; color: var(--muted); font-family: monospace; }
+    .badge { display: inline-flex; align-items: center; font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+    .badge-active { background: rgba(86,211,100,0.15); color: var(--green);   border: 1px solid rgba(86,211,100,0.3); }
+    .badge-idle   { background: rgba(255,255,255,0.05); color: var(--muted);  border: 1px solid var(--border); }
+    .badge-train  { background: rgba(99,179,237,0.15);  color: var(--primary); border: 1px solid rgba(99,179,237,0.3); }
+    .badge-eval   { background: rgba(240,136,62,0.15);  color: var(--orange);  border: 1px solid rgba(240,136,62,0.3); }
+    .badge-easy   { background: rgba(86,211,100,0.12);  color: var(--green);   border: 1px solid rgba(86,211,100,0.3); }
+    .badge-medium { background: rgba(227,179,65,0.12);  color: var(--yellow);  border: 1px solid rgba(227,179,65,0.3); }
+    .badge-hard   { background: rgba(248,81,73,0.12);   color: var(--red);     border: 1px solid rgba(248,81,73,0.3); }
+    .badge-mtg    { background: rgba(159,122,234,0.15); color: var(--accent);  border: 1px solid rgba(159,122,234,0.3); }
+    .badge-new    { background: rgba(99,179,237,0.15);  color: var(--primary); border: 1px solid rgba(99,179,237,0.3); font-size:10px; }
 
-    .main { padding: 24px; max-width: 1440px; margin: 0 auto; }
+    /* ── Layout ── */
+    .main { padding: 18px 20px; max-width: 1600px; margin: 0 auto; }
+    .section-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 20px 0 10px; display: flex; align-items: center; gap: 8px; }
+    .section-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
 
-    /* ── Status Bar ──────────────────────────────────────────────────────── */
-    .status-row {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-      gap: 14px;
-      margin-bottom: 22px;
-    }
-    .stat-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 16px 20px;
-    }
-    .stat-label { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: 6px; }
-    .stat-value { font-size: 20px; font-weight: 700; }
+    /* ── Stat cards ── */
+    .stat-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 18px; }
+    .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; }
+    .stat-label { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: 4px; }
+    .stat-value { font-size: 22px; font-weight: 700; }
+    .stat-sub   { font-size: 11px; color: var(--muted); margin-top: 2px; }
 
-    /* ── Controls ────────────────────────────────────────────────────────── */
-    .controls {
-      display: flex;
-      gap: 10px;
-      align-items: center;
-      margin-bottom: 22px;
-      flex-wrap: wrap;
-    }
-    select, button {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      color: var(--text);
-      border-radius: 8px;
-      padding: 8px 16px;
-      font-size: 13px;
-      cursor: pointer;
-      transition: background .15s;
-    }
-    button:hover { background: rgba(255,255,255,0.06); }
-    button:disabled { opacity: 0.5; cursor: not-allowed; }
-    #btn-reset { background: rgba(99,179,237,0.15); border-color: var(--primary); color: var(--primary); font-weight: 600; }
-    #btn-reset:hover:not(:disabled) { background: rgba(99,179,237,0.25); }
+    /* ── Controls ── */
+    .controls { display: flex; gap: 8px; align-items: center; margin-bottom: 18px; flex-wrap: wrap; }
+    select, button { background: var(--surface); border: 1px solid var(--border); color: var(--text); border-radius: 8px; padding: 7px 14px; font-size: 13px; cursor: pointer; transition: background .15s; }
+    button:hover:not(:disabled) { background: rgba(255,255,255,0.06); }
+    button:disabled { opacity: .45; cursor: not-allowed; }
+    #btn-reset { background: rgba(99,179,237,0.12); border-color: var(--primary); color: var(--primary); font-weight: 600; }
+    #btn-reset:hover:not(:disabled) { background: rgba(99,179,237,0.22); }
+    label.ctrl-label { font-size: 12px; color: var(--muted); }
 
-    /* ── Progress Bar ────────────────────────────────────────────────────── */
-    .progress-wrap { margin-bottom: 22px; }
-    .progress-header { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); margin-bottom: 6px; }
-    .progress-track { height: 8px; background: rgba(255,255,255,0.06); border-radius: 999px; overflow: hidden; }
+    /* ── Progress ── */
+    .progress-wrap { margin-bottom: 18px; }
+    .progress-header { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); margin-bottom: 5px; }
+    .progress-track { height: 7px; background: rgba(255,255,255,0.06); border-radius: 999px; overflow: hidden; }
     .progress-fill  { height: 100%; background: linear-gradient(90deg, var(--primary), var(--accent)); border-radius: 999px; transition: width .4s; }
 
-    /* ── Grid ────────────────────────────────────────────────────────────── */
-    .grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 16px;
-    }
-    @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+    /* ── Grid ── */
+    .grid { display: grid; gap: 14px; }
+    .grid-2 { grid-template-columns: 1fr 1fr; }
+    .grid-3 { grid-template-columns: 1fr 1fr 1fr; }
     .grid-full { grid-column: 1 / -1; }
+    @media (max-width: 1000px) { .grid-3, .grid-2 { grid-template-columns: 1fr; } }
 
-    .panel {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      overflow: hidden;
-    }
-    .panel-header {
-      padding: 14px 18px;
-      border-bottom: 1px solid var(--border);
-      font-size: 13px;
-      font-weight: 600;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    .panel-body { padding: 16px 18px; }
+    /* ── Panel ── */
+    .panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+    .panel-header { padding: 12px 16px; border-bottom: 1px solid var(--border); font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+    .panel-body { padding: 14px 16px; }
+    .ph-right { margin-left: auto; }
 
-    /* ── List Items ──────────────────────────────────────────────────────── */
-    .list-item {
-      display: flex;
-      align-items: flex-start;
-      gap: 10px;
-      padding: 10px 0;
-      border-bottom: 1px solid var(--border);
-    }
+    /* ── Lists ── */
+    .list-item { display: flex; align-items: flex-start; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--border); }
     .list-item:last-child { border-bottom: none; }
-    .list-item.unread { background: rgba(99,179,237,0.03); }
-    .list-item.highlight { background: rgba(159,122,234,0.06); }
+    .list-item.unread { background: rgba(99,179,237,0.02); }
+    .list-item.highlight { background: rgba(159,122,234,0.05); }
     .list-item-body { flex: 1; min-width: 0; }
     .list-item-body strong { display: block; font-size: 13px; }
     .subject { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
     .ts { font-size: 11px; color: var(--muted); white-space: nowrap; }
-    .dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 4px; flex-shrink: 0; }
+    .dot { width: 7px; height: 7px; border-radius: 50%; margin-top: 5px; flex-shrink: 0; }
     .dot-unread { background: var(--primary); }
     .dot-read   { border: 1px solid var(--muted); }
-    .doc-icon { font-size: 18px; flex-shrink: 0; margin-top: 2px; }
-    .cal-date { font-size: 11px; font-family: monospace; color: var(--accent); white-space: nowrap; padding-top: 2px; }
+    .doc-icon { font-size: 17px; flex-shrink: 0; margin-top: 2px; }
+    .cal-date { font-size: 11px; font-family: monospace; color: var(--accent); white-space: nowrap; padding-top: 3px; }
 
-    /* ── Email detail ────────────────────────────────────────────────────── */
+    /* ── Email detail ── */
     .email-detail { font-size: 13px; }
-    .email-meta { padding: 4px 0; color: var(--muted); }
+    .email-meta { padding: 3px 0; color: var(--muted); }
     .email-meta b { color: var(--text); }
-    .email-body {
-      margin-top: 12px;
-      background: rgba(0,0,0,0.2);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 12px;
-      font-size: 12px;
-      white-space: pre-wrap;
-      font-family: "SFMono-Regular", Consolas, monospace;
-      color: var(--muted);
-      max-height: 200px;
-      overflow-y: auto;
-    }
+    .email-body { margin-top: 10px; background: rgba(0,0,0,0.2); border: 1px solid var(--border); border-radius: 8px; padding: 10px; font-size: 12px; white-space: pre-wrap; font-family: monospace; color: var(--muted); max-height: 180px; overflow-y: auto; }
 
-    /* ── Badges ──────────────────────────────────────────────────────────── */
-    .badge { display: inline-flex; align-items: center; font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
-    .badge-active { background: rgba(86,211,100,0.15); color: var(--green); border: 1px solid rgba(86,211,100,0.3); }
-    .badge-idle   { background: rgba(255,255,255,0.05); color: var(--muted); border: 1px solid var(--border); }
-    .badge-mtg    { background: rgba(159,122,234,0.15); color: var(--accent); border: 1px solid rgba(159,122,234,0.3); }
-    .badge-new    { background: rgba(99,179,237,0.15);  color: var(--primary); border: 1px solid rgba(99,179,237,0.3); font-size: 10px; }
+    /* ── Action chips ── */
+    .action-chip { display: inline-block; background: rgba(255,255,255,0.04); border: 1px solid var(--border); border-radius: 6px; padding: 2px 9px; font-size: 11px; font-family: monospace; color: var(--muted); margin: 2px; }
 
-    /* ── Actions ─────────────────────────────────────────────────────────── */
-    .action-chip {
-      display: inline-block;
-      background: rgba(255,255,255,0.05);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: 3px 10px;
-      font-size: 11px;
-      font-family: monospace;
-      color: var(--muted);
-      margin: 2px;
-    }
-
-    /* ── Timeline ────────────────────────────────────────────────────────── */
-    .timeline { display: flex; flex-direction: column; gap: 6px; max-height: 380px; overflow-y: auto; }
-    .timeline-step {
-      display: grid;
-      grid-template-columns: 30px 1fr auto auto auto;
-      gap: 8px;
-      align-items: center;
-      padding: 8px 12px;
-      background: rgba(255,255,255,0.02);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      font-size: 12px;
-    }
-    .timeline-step.step-invalid { border-color: rgba(248,81,73,0.3); background: rgba(248,81,73,0.04); }
+    /* ── Timeline ── */
+    .timeline { display: flex; flex-direction: column; gap: 5px; max-height: 320px; overflow-y: auto; }
+    .tl-step { display: grid; grid-template-columns: 28px 1fr auto auto auto; gap: 7px; align-items: center; padding: 7px 10px; background: rgba(255,255,255,0.02); border: 1px solid var(--border); border-radius: 7px; font-size: 12px; }
+    .tl-step.step-invalid { border-color: rgba(248,81,73,0.3); }
     .step-num    { color: var(--muted); font-family: monospace; text-align: right; }
     .step-action { font-family: monospace; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .step-reward { font-family: monospace; font-weight: 700; white-space: nowrap; }
-    .step-reward.pos { color: var(--green); }
-    .step-reward.neg { color: var(--red); }
+    .step-rew    { font-family: monospace; font-weight: 700; white-space: nowrap; }
+    .step-rew.pos { color: var(--green); }
+    .step-rew.neg { color: var(--red); }
     .step-total  { font-family: monospace; color: var(--primary); white-space: nowrap; }
     .step-reason { color: var(--muted); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-    /* ── Chart ───────────────────────────────────────────────────────────── */
-    .chart-wrap { height: 260px; position: relative; }
+    /* ── Chart ── */
+    .chart-wrap { height: 220px; position: relative; }
 
-    /* ── Misc ────────────────────────────────────────────────────────────── */
-    .empty { color: var(--muted); font-size: 13px; text-align: center; padding: 24px 0; }
-    .meta-row { display: flex; gap: 24px; flex-wrap: wrap; padding-bottom: 8px; border-bottom: 1px solid var(--border); margin-bottom: 12px; }
+    /* ── Metrics grid ── */
+    .metrics-mini-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+    .metric-box { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; }
+    .metric-box .val { font-size: 20px; font-weight: 700; }
+    .metric-box .lbl { font-size: 11px; color: var(--muted); }
+
+    /* ── Task breakdown table ── */
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    th { text-align: left; color: var(--muted); font-weight: 600; padding: 6px 8px; border-bottom: 1px solid var(--border); font-size: 11px; text-transform: uppercase; letter-spacing: .05em; }
+    td { padding: 7px 8px; border-bottom: 1px solid rgba(255,255,255,0.04); }
+    tr:last-child td { border-bottom: none; }
+    .rank-cell { font-weight: 700; color: var(--accent); }
+    .score-bar-wrap { width: 80px; height: 5px; background: rgba(255,255,255,0.06); border-radius: 999px; overflow: hidden; display: inline-block; vertical-align: middle; margin-right: 6px; }
+    .score-bar-fill { height: 100%; background: linear-gradient(90deg, var(--primary), var(--accent)); border-radius: 999px; }
+
+    /* ── Success ring ── */
+    .ring-wrap { position: relative; width: 80px; height: 80px; margin: 0 auto 8px; }
+    .ring-label { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 700; }
+
+    /* ── Misc ── */
+    .empty { color: var(--muted); font-size: 13px; text-align: center; padding: 20px 0; }
+    .tag-row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+    .meta-row { display: flex; gap: 20px; flex-wrap: wrap; padding-bottom: 8px; border-bottom: 1px solid var(--border); margin-bottom: 10px; }
     .meta-item { font-size: 12px; }
     .meta-item b { color: var(--text); }
     .meta-item span { color: var(--muted); }
+    .win-badge { display: inline-block; background: rgba(227,179,65,0.15); color: var(--yellow); border: 1px solid rgba(227,179,65,0.3); border-radius: 4px; font-size: 10px; padding: 1px 5px; }
   </style>
 </head>
 <body>
 
-<!-- ── Top bar ──────────────────────────────────────────────────────────────── -->
+<!-- ── Topbar ─────────────────────────────────────────────────────────────── -->
 <header class="topbar">
-  <div class="topbar-logo"><span>🗂️</span> OpenEnv Workspace</div>
-  <div class="topbar-sep"></div>
-  <span id="val-active" class="badge badge-idle">Idle</span>
-  <span class="topbar-api">GET /state · POST /step · POST /reset</span>
+  <div class="logo"><span class="logo-icon">🗂️</span> OpenEnv Workspace</div>
+  <div class="sep"></div>
+  <span id="val-mode-badge"  class="badge badge-train">Training</span>
+  <span id="val-diff-badge"  class="badge badge-medium">Medium</span>
+  <span id="val-active"      class="badge badge-idle">Idle</span>
+  <span class="topbar-api">v2.0 · POST /reset · POST /step · GET /metrics</span>
 </header>
 
 <div class="main">
 
-  <!-- ── Status cards ─────────────────────────────────────────────────────── -->
-  <div class="status-row">
+  <!-- ── Live status cards ─────────────────────────────────────────────────── -->
+  <div class="stat-row">
     <div class="stat-card">
       <div class="stat-label">Current App</div>
       <div class="stat-value" id="val-app">—</div>
     </div>
     <div class="stat-card">
-      <div class="stat-label">Active Task</div>
-      <div class="stat-value" style="font-size:13px;padding-top:4px" id="val-task">—</div>
+      <div class="stat-label">Task</div>
+      <div class="stat-value" style="font-size:12px;padding-top:5px" id="val-task">—</div>
     </div>
     <div class="stat-card">
       <div class="stat-label">Step</div>
       <div class="stat-value" id="val-step">—</div>
+      <div class="stat-sub" id="val-max-step"></div>
     </div>
     <div class="stat-card">
-      <div class="stat-label">Total Reward</div>
+      <div class="stat-label">Reward</div>
       <div class="stat-value" style="color:var(--green)" id="val-reward">0.000</div>
     </div>
   </div>
 
-  <!-- ── Progress bar ─────────────────────────────────────────────────────── -->
+  <!-- ── Progress bar ──────────────────────────────────────────────────────── -->
   <div class="progress-wrap">
-    <div class="progress-header">
-      <span>Task Progress</span>
-      <span id="progress-pct">0.0%</span>
-    </div>
-    <div class="progress-track">
-      <div class="progress-fill" id="progress-bar" style="width:0%"></div>
-    </div>
+    <div class="progress-header"><span>Task Progress</span><span id="progress-pct">0.0%</span></div>
+    <div class="progress-track"><div class="progress-fill" id="progress-bar" style="width:0%"></div></div>
   </div>
 
-  <!-- ── Controls ─────────────────────────────────────────────────────────── -->
+  <!-- ── Controls ──────────────────────────────────────────────────────────── -->
   <div class="controls">
+    <label class="ctrl-label">Task</label>
     <select id="task-select">
-      <option value="">Random Task</option>
+      <option value="">Random</option>
       <option value="ws_task_1">Task 1 — Email Retrieval (Easy)</option>
       <option value="ws_task_2">Task 2 — Meeting Scheduling (Medium)</option>
       <option value="ws_task_3">Task 3 — Document Organization (Hard)</option>
     </select>
+    <label class="ctrl-label">Difficulty</label>
+    <select id="diff-select">
+      <option value="easy">Easy</option>
+      <option value="medium" selected>Medium</option>
+      <option value="hard">Hard</option>
+    </select>
+    <label class="ctrl-label">Mode</label>
+    <select id="mode-select">
+      <option value="training" selected>Training</option>
+      <option value="evaluation">Evaluation</option>
+    </select>
+    <input id="agent-name" type="text" placeholder="Agent name" value="agent" style="width:120px" />
     <button id="btn-reset">Reset Environment</button>
     <a href="/docs" target="_blank"><button type="button">API Docs ↗</button></a>
   </div>
 
-  <!-- ── Main grid ────────────────────────────────────────────────────────── -->
-  <div class="grid">
-
-    <!-- Email Inbox -->
+  <!-- ── Workspace state ────────────────────────────────────────────────────── -->
+  <div class="section-title">Live Workspace State</div>
+  <div class="grid grid-3">
     <div class="panel">
       <div class="panel-header">📧 Email Inbox</div>
-      <div class="panel-body">
-        <div id="email-list"><p class="empty">Loading…</p></div>
-      </div>
+      <div class="panel-body"><div id="email-list"><p class="empty">Loading…</p></div></div>
     </div>
-
-    <!-- Open email / Calendar / Documents tabbed-ish -->
     <div class="panel">
       <div class="panel-header">📨 Open Email</div>
-      <div class="panel-body">
-        <div id="selected-email"><p class="empty">No email selected</p></div>
-      </div>
+      <div class="panel-body"><div id="selected-email"><p class="empty">No email selected</p></div></div>
     </div>
-
-    <!-- Calendar -->
     <div class="panel">
       <div class="panel-header">📅 Calendar</div>
-      <div class="panel-body">
-        <div id="calendar-list"><p class="empty">Loading…</p></div>
-      </div>
+      <div class="panel-body"><div id="calendar-list"><p class="empty">Loading…</p></div></div>
     </div>
-
-    <!-- Documents -->
     <div class="panel">
       <div class="panel-header">📁 Documents</div>
-      <div class="panel-body">
-        <div id="doc-list"><p class="empty">Loading…</p></div>
-      </div>
+      <div class="panel-body"><div id="doc-list"><p class="empty">Loading…</p></div></div>
     </div>
-
-    <!-- Available actions -->
-    <div class="panel grid-full">
-      <div class="panel-header">⚡ Available Actions</div>
-      <div class="panel-body">
-        <div id="actions-list"></div>
-      </div>
+    <div class="panel" style="grid-column: span 2">
+      <div class="panel-header">⚡ Available Actions <span id="val-mode-inline" class="ph-right badge badge-train" style="font-size:10px">Training</span></div>
+      <div class="panel-body"><div id="actions-list"></div></div>
     </div>
+  </div>
 
-    <!-- Reward chart -->
-    <div class="panel grid-full">
+  <!-- ── Reward chart + Timeline ───────────────────────────────────────────── -->
+  <div class="section-title">Episode Replay</div>
+  <div class="grid grid-2">
+    <div class="panel">
       <div class="panel-header">📈 Reward Progression</div>
       <div class="panel-body">
         <div class="meta-row">
@@ -321,23 +252,74 @@
           <div class="meta-item"><b id="val-episode-steps">0</b> <span>steps</span></div>
           <div class="meta-item"><b id="val-episode-status">—</b></div>
         </div>
-        <div class="chart-wrap">
-          <canvas id="reward-chart"></canvas>
-        </div>
+        <div class="chart-wrap"><canvas id="reward-chart"></canvas></div>
       </div>
     </div>
-
-    <!-- Action timeline -->
-    <div class="panel grid-full">
+    <div class="panel">
       <div class="panel-header">⏱️ Action Timeline</div>
+      <div class="panel-body"><div class="timeline" id="timeline"><p class="empty">No steps yet</p></div></div>
+    </div>
+  </div>
+
+  <!-- ── Metrics ────────────────────────────────────────────────────────────── -->
+  <div class="section-title">Performance Metrics</div>
+  <div class="grid grid-3">
+    <div class="panel">
+      <div class="panel-header">📊 Aggregate</div>
       <div class="panel-body">
-        <div class="timeline" id="timeline">
-          <p class="empty">No steps yet — reset and start an episode.</p>
+        <div class="metrics-mini-row">
+          <div class="metric-box"><div class="lbl">Episodes</div><div class="val" id="m-episodes">0</div></div>
+          <div class="metric-box"><div class="lbl">Success Rate</div><div class="val" id="m-success" style="color:var(--green)">—</div></div>
+          <div class="metric-box"><div class="lbl">Avg Reward</div><div class="val" id="m-reward" style="color:var(--primary)">—</div></div>
+          <div class="metric-box"><div class="lbl">Avg Steps</div><div class="val" id="m-steps">—</div></div>
         </div>
+        <div class="chart-wrap" style="height:140px"><canvas id="metrics-chart"></canvas></div>
       </div>
     </div>
+    <div class="panel">
+      <div class="panel-header">🗂️ By Task</div>
+      <div class="panel-body">
+        <table id="task-metrics-table">
+          <thead><tr><th>Task</th><th>Episodes</th><th>Success</th><th>Avg Reward</th></tr></thead>
+          <tbody id="task-metrics-body"><tr><td colspan="4" style="text-align:center;color:var(--muted);padding:16px">No data</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-header">🎯 By Difficulty</div>
+      <div class="panel-body">
+        <table id="diff-metrics-table">
+          <thead><tr><th>Level</th><th>Episodes</th><th>Success</th><th>Avg Reward</th></tr></thead>
+          <tbody id="diff-metrics-body"><tr><td colspan="4" style="text-align:center;color:var(--muted);padding:16px">No data</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
 
-  </div><!-- /.grid -->
+  <!-- ── Leaderboard ────────────────────────────────────────────────────────── -->
+  <div class="section-title">Leaderboard</div>
+  <div class="panel grid-full">
+    <div class="panel-header">🏆 Agent Rankings <span class="ph-right" style="font-size:11px;color:var(--muted)">sorted by avg grader score</span></div>
+    <div class="panel-body">
+      <table id="leaderboard-table">
+        <thead>
+          <tr>
+            <th style="width:36px">Rank</th>
+            <th>Agent</th>
+            <th>Avg Score</th>
+            <th>Avg Reward</th>
+            <th>Episodes</th>
+            <th>Win Rate</th>
+            <th>Last Active</th>
+          </tr>
+        </thead>
+        <tbody id="leaderboard-body">
+          <tr><td colspan="7" style="text-align:center;color:var(--muted);padding:20px">No agents recorded yet — run an episode to populate</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
 </div><!-- /.main -->
 
 <script src="/dashboard/dashboard.js"></script>
