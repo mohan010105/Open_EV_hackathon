@@ -1,0 +1,66 @@
+name: ai-workspace-assistant
+version: "1.0.0"
+description: >
+  An OpenEnv-compatible reinforcement learning environment that simulates
+  a digital productivity workspace. The AI agent performs tasks such as
+  reading emails, scheduling meetings, and organizing documents.
+
+author: OpenEnv
+license: MIT
+
+environment:
+  type: workspace_assistant
+  observation_space: structured_json
+  action_space: discrete_named
+
+endpoints:
+  reset: POST /reset
+  step:  POST /step
+  state: GET  /state
+
+tasks:
+  - id: ws_task_1
+    name: Email Retrieval
+    difficulty: easy
+    grader: graders.grade_email_retrieval
+    max_steps: 6
+    description: "Find the email from Alex Johnson about the team meeting."
+
+  - id: ws_task_2
+    name: Meeting Scheduling
+    difficulty: medium
+    grader: graders.grade_meeting_scheduling
+    max_steps: 10
+    description: "Read Alex's email and schedule the meeting in the calendar."
+
+  - id: ws_task_3
+    name: Document Organization
+    difficulty: hard
+    grader: graders.grade_document_organization
+    max_steps: 8
+    description: "Move project_proposal.pdf to the Projects folder."
+
+actions:
+  - open_email_inbox
+  - search_email
+  - read_email
+  - create_calendar_event
+  - move_document
+  - view_calendar
+  - view_documents
+  - noop
+
+reward_schema:
+  correct_action: +0.3
+  task_completion: +1.0
+  wrong_action:    -0.1
+
+graders:
+  score_range: [0.0, 1.0]
+  partial_credit: true
+
+deployment:
+  platform: huggingface_spaces
+  runtime: python3.10
+  port: 7860
+  health_check: GET /state
