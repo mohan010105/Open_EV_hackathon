@@ -1,0 +1,182 @@
+You are an expert AI systems engineer.
+
+Extend an existing OpenEnv-compatible project called "AI Workspace Assistant Environment".
+
+Add advanced features that transform the environment into a realistic AI training platform.
+
+---
+
+## FEATURE 1 — DYNAMIC TASK GENERATOR
+
+Replace fixed tasks with a dynamic task generator.
+
+Each episode should randomly select a task from a pool such as:
+
+• find_email_from_sender
+• schedule_meeting
+• organize_document
+
+Example task instruction:
+
+"Find the email from Alex."
+"Schedule a meeting with Sarah tomorrow."
+"Move project_proposal.pdf to the Projects folder."
+
+Implement a function:
+
+generate_random_task()
+
+which returns a task description and required goal state.
+
+---
+
+## FEATURE 2 — ENVIRONMENT RANDOMIZATION
+
+Randomize environment state at the beginning of each episode.
+
+Randomize:
+
+• email list order
+• calendar events
+• document folders
+• distractor items
+
+Ensure the environment remains deterministic for testing by allowing a random seed.
+
+Example:
+
+seed = 42
+
+---
+
+## FEATURE 3 — DIFFICULTY LEVELS
+
+Implement environment difficulty levels:
+
+easy → small dataset
+medium → moderate complexity
+hard → large dataset with distractors
+
+Difficulty should control:
+
+• number of emails
+• number of documents
+• number of irrelevant items
+
+Add configuration:
+
+difficulty = "medium"
+
+---
+
+## FEATURE 4 — PERFORMANCE METRICS
+
+Track metrics for agent performance.
+
+Record:
+
+episode_count
+success_rate
+average_reward
+average_steps
+
+Store metrics in a metrics module.
+
+Expose metrics via API endpoint:
+
+GET /metrics
+
+Example response:
+
+{
+"episodes": 10,
+"success_rate": 0.8,
+"avg_reward": 0.72
+}
+
+---
+
+## FEATURE 5 — LEADERBOARD SYSTEM
+
+Create a simple leaderboard tracking agent scores.
+
+Leaderboard should store:
+
+agent_name
+average_score
+episodes_run
+
+Example:
+
+[
+{
+"agent": "LLM Agent",
+"score": 0.92
+},
+{
+"agent": "Baseline Agent",
+"score": 0.65
+}
+]
+
+Expose leaderboard via:
+
+GET /leaderboard
+
+---
+
+## FEATURE 6 — DASHBOARD EXTENSION
+
+Update the visualization dashboard to show:
+
+• task description
+• reward progression graph
+• performance metrics
+• leaderboard
+
+Use Chart.js for visualizing rewards and metrics.
+
+---
+
+## FEATURE 7 — TRAINING VS EVALUATION MODE
+
+Add two modes:
+
+training → environment gives rewards for learning
+
+evaluation → rewards used only for scoring
+
+Add configuration:
+
+mode = "evaluation"
+
+---
+
+## CODE REQUIREMENTS
+
+Ensure the implementation includes:
+
+• modular architecture
+• type hints
+• docstrings
+• deterministic environment behavior
+• minimal dependencies
+
+Ensure the system still runs within:
+
+2 vCPU
+8GB RAM
+runtime < 20 minutes
+
+---
+
+## FINAL OUTPUT
+
+Generate the updated code files needed to support these features.
+
+Update the FastAPI server to include endpoints:
+
+/metrics
+/leaderboard
+
+Update the dashboard to display the new metrics and leaderboard.
