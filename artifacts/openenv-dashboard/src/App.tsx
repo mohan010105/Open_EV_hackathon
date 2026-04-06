@@ -11,6 +11,7 @@ import Tasks from "@/pages/Tasks";
 import History from "@/pages/History";
 import WorkspaceRunner from "@/pages/WorkspaceRunner";
 import WorkspaceTasks from "@/pages/WorkspaceTasks";
+import WorkspaceAnalytics from "@/pages/WorkspaceAnalytics";
 import NotFound from "@/pages/not-found";
 
 const queryClient = new QueryClient({
@@ -32,6 +33,7 @@ function Router() {
         <Route path="/history" component={History} />
         <Route path="/workspace" component={WorkspaceRunner} />
         <Route path="/workspace/tasks" component={WorkspaceTasks} />
+        <Route path="/workspace/analytics" component={WorkspaceAnalytics} />
         <Route component={NotFound} />
       </Switch>
     </Layout>

@@ -1,0 +1,192 @@
+You are a senior full-stack engineer.
+
+Build a complete frontend dashboard for an OpenEnv environment project using Next.js.
+
+The backend API is already deployed and provides the following endpoints:
+
+POST /reset
+POST /step
+GET /state
+GET /episode_replay
+GET /metrics
+GET /leaderboard
+
+The frontend must connect to this API and provide a clean interactive UI.
+
+---
+
+## PROJECT REQUIREMENTS
+
+Use Next.js (latest version).
+
+Use functional React components.
+
+Use Tailwind CSS for styling.
+
+---
+
+## ENVIRONMENT VARIABLES
+
+Use environment variable:
+
+NEXT_PUBLIC_API_URL
+
+Example:
+
+NEXT_PUBLIC_API_URL=https://your-hf-space.hf.space
+
+---
+
+## FEATURES TO IMPLEMENT
+
+1. DASHBOARD UI
+
+Display:
+
+• Current environment state
+• Current task
+• Reward value
+• Step count
+
+---
+
+2. ACTION CONTROLS
+
+Provide buttons:
+
+Reset
+Step (manual action input)
+Run Demo
+
+---
+
+3. DEMO MODE (IMPORTANT)
+
+Add a "Run Demo" button.
+
+When clicked:
+
+• Call /reset
+• Automatically run multiple steps
+• Display actions and rewards
+• Stop when done
+
+---
+
+4. API INTEGRATION
+
+Use fetch API:
+
+fetch(`${API_BASE}/reset`, { method: "POST" })
+
+fetch(`${API_BASE}/step`, {
+method: "POST",
+body: JSON.stringify({ action })
+})
+
+---
+
+5. ERROR HANDLING
+
+Handle:
+
+• API errors
+• network failures
+• invalid responses
+
+Show user-friendly messages.
+
+---
+
+6. LOADING STATES
+
+Display loading indicator when API calls are running.
+
+---
+
+7. REPLAY VIEW
+
+Display episode replay:
+
+• step number
+• action
+• reward
+
+---
+
+8. METRICS + LEADERBOARD
+
+Display:
+
+• success rate
+• average reward
+• leaderboard scores
+
+---
+
+9. UI DESIGN
+
+Use Tailwind:
+
+• card layout
+• buttons
+• responsive design
+
+---
+
+10. CORS COMPATIBILITY
+
+Assume backend has CORS enabled.
+
+---
+
+## PROJECT FILE STRUCTURE
+
+pages/index.js
+components/Dashboard.js
+components/Controls.js
+components/Replay.js
+
+---
+
+## VERCEL DEPLOYMENT
+
+Ensure project runs with:
+
+npm install
+npm run dev
+npm run build
+
+Add vercel.json:
+
+{
+"framework": "nextjs"
+}
+
+---
+
+## OUTPUT
+
+Generate complete working code for:
+
+• pages/index.js
+• components
+• API integration
+• UI layout
+
+Ensure the app runs without errors and connects to the OpenEnv backend.
+
+---
+
+## FINAL CHECKLIST (IMPORTANT)
+
+Ensure:
+
+• frontend loads correctly
+• API calls work
+• demo button works
+• no console errors
+• responsive UI
+• deployable on Vercel
+
+Provide final instructions to run and deploy.

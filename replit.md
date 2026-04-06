@@ -91,6 +91,51 @@ Generated Zod schemas from the OpenAPI spec (e.g. `HealthCheckResponse`). Used b
 
 Generated React Query hooks and fetch client from the OpenAPI spec (e.g. `useHealthCheck`, `healthCheck`).
 
+### `artifacts/openenv-dashboard` (`@workspace/openenv-dashboard`)
+
+React + Vite dashboard for the OpenEnv AI training platform.
+
+- Pages: Dashboard, Simulation (Web Nav runner), Tasks, History, WorkspaceRunner, WorkspaceTasks, **WorkspaceAnalytics** (new)
+- Navigation: Sidebar with Web Navigation + Workspace Assistant sections
+- New Analytics page (`/workspace/analytics`): Metrics tab, Leaderboard tab, Episode Replay tab
+- Hooks: `use-workspace.ts` — `useWorkspaceState`, `useWorkspaceStep`, `useWorkspaceReset`, `useWorkspaceTasks`, `useWorkspaceSessions`, **`useWorkspaceMetrics`**, **`useWorkspaceLeaderboard`**, **`useWorkspaceReplay`**
+
+### Workspace Environment (`artifacts/api-server/src/env/workspace/`)
+
+Full RL environment implementing all 7 advanced features:
+
+1. **Dynamic Task Generator** — random task selection from pool (email retrieval, meeting scheduling, doc organisation)
+2. **Environment Randomization** — seed-based deterministic shuffle; dataset subset per episode
+3. **Difficulty Levels** — easy (3), medium (5), hard (8) emails/documents
+4. **Performance Metrics** — `/api/workspace/metrics` → `episode_count`, `success_rate`, `avg_reward`, `avg_steps`, `by_task`, `by_difficulty`
+5. **Leaderboard System** — `/api/workspace/leaderboard` → ranked agents by `average_score`
+6. **Episode Replay** — `/api/workspace/episode_replay` → full step-by-step action log with rewards
+7. **Training vs Evaluation Mode** — in evaluation mode, small intermediate rewards are suppressed
+
+#### API Endpoints (all at `/api/workspace/*`)
+
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/reset` | Start episode; accepts `task_id`, `difficulty`, `mode`, `agent_name`, `seed` |
+| POST | `/step` | Execute action with params |
+| GET | `/state` | Current observation + session meta (includes `difficulty`, `mode`) |
+| GET | `/tasks` | List all tasks |
+| GET | `/sessions` | Session history |
+| GET | `/episode_replay` | Current episode step log |
+| GET | `/metrics` | Aggregated performance metrics |
+| GET | `/leaderboard` | Ranked agent scores |
+
+### `openenv-nextjs-dashboard/` (standalone — Vercel deployable)
+
+Standalone Next.js 14 + Tailwind CSS + Recharts dashboard for the OpenEnv FastAPI backend.
+
+- **Connects to**: `NEXT_PUBLIC_API_URL` env var (default: `http://localhost:7860`)
+- **Pages**: Single-page app at `pages/index.js`
+- **Components**: `Dashboard.js`, `Controls.js`, `Replay.js`, `Metrics.js`, `Leaderboard.js`
+- **Features**: Live state polling, Reset/Step/Demo controls, auto-demo (Task 2 playbook), reward chart, metrics, leaderboard
+- **Deploy**: Push `openenv-nextjs-dashboard/` to Vercel; set `NEXT_PUBLIC_API_URL` in Vercel env vars
+- **Local dev**: Copy `.env.local.example` → `.env.local`, run `npm install && npm run dev`
+
 ### `scripts` (`@workspace/scripts`)
 
 Utility scripts package. Each script is a `.ts` file in `src/` with a corresponding npm script in `package.json`. Run scripts via `pnpm --filter @workspace/scripts run <script>`. Scripts can import any workspace package (e.g., `@workspace/db`) by adding it as a dependency in `scripts/package.json`.

@@ -7,6 +7,9 @@ import {
   getWorkspaceSessions,
 } from "@workspace/api-client-react";
 
+// Base URL for direct API calls (new endpoints not yet in generated client)
+const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
+
 export function useWorkspaceState() {
   return useQuery({
     queryKey: ["workspace", "state"],
@@ -48,5 +51,32 @@ export function useWorkspaceStep() {
       qc.invalidateQueries({ queryKey: ["workspace", "state"] });
       qc.invalidateQueries({ queryKey: ["workspace", "sessions"] });
     },
+  });
+}
+
+/** Feature 4 — Performance Metrics */
+export function useWorkspaceMetrics() {
+  return useQuery({
+    queryKey: ["workspace", "metrics"],
+    queryFn: () => fetch(`${BASE}/api/workspace/metrics`).then(r => r.json()),
+    refetchInterval: 10000,
+  });
+}
+
+/** Feature 5 — Leaderboard */
+export function useWorkspaceLeaderboard() {
+  return useQuery({
+    queryKey: ["workspace", "leaderboard"],
+    queryFn: () => fetch(`${BASE}/api/workspace/leaderboard`).then(r => r.json()),
+    refetchInterval: 10000,
+  });
+}
+
+/** Feature 6 — Episode Replay */
+export function useWorkspaceReplay() {
+  return useQuery({
+    queryKey: ["workspace", "episode_replay"],
+    queryFn: () => fetch(`${BASE}/api/workspace/episode_replay`).then(r => r.json()),
+    refetchInterval: 3000,
   });
 }

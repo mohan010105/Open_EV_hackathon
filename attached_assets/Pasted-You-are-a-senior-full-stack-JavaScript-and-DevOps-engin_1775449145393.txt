@@ -1,0 +1,149 @@
+You are a senior full-stack JavaScript and DevOps engineer.
+
+Audit and update this project so that it runs correctly using npm and can be deployed to Vercel.
+
+The project currently has issues with npm install and npm run dev.
+
+Your task is to fix all issues and prepare it for production deployment.
+
+---
+
+## STEP 1 — FIX PACKAGE.JSON
+
+Update package.json to include:
+
+• correct dependencies
+• correct devDependencies
+• working scripts section
+
+Ensure scripts include:
+
+"scripts": {
+"dev": "next dev",
+"build": "next build",
+"start": "next start"
+}
+
+If this is not a Next.js project, adjust accordingly:
+
+For Vite:
+"dev": "vite"
+
+For React:
+"dev": "react-scripts start"
+
+---
+
+## STEP 2 — DEPENDENCY VALIDATION
+
+Check for missing or broken dependencies.
+
+Install required packages:
+
+npm install
+
+Fix version conflicts.
+
+Remove unused or invalid dependencies.
+
+---
+
+## STEP 3 — FIX PROJECT STRUCTURE
+
+Ensure correct structure:
+
+For Next.js:
+pages/
+app/
+public/
+
+For Vite:
+src/
+index.html
+
+Ensure entry files exist.
+
+---
+
+## STEP 4 — FIX NPM RUN DEV
+
+Ensure that:
+
+npm run dev
+
+starts the development server without errors.
+
+Fix any import issues, missing modules, or config errors.
+
+---
+
+## STEP 5 — ENVIRONMENT VARIABLES
+
+Create .env.local file:
+
+NEXT_PUBLIC_API_URL=http://localhost:7860
+
+Ensure env variables are loaded correctly.
+
+---
+
+## STEP 6 — VERCEL CONFIGURATION
+
+Add vercel.json file:
+
+{
+"framework": "nextjs",
+"buildCommand": "npm run build",
+"outputDirectory": ".next"
+}
+
+If using Vite:
+
+{
+"buildCommand": "npm run build",
+"outputDirectory": "dist"
+}
+
+---
+
+## STEP 7 — BUILD TEST
+
+Run:
+
+npm run build
+
+Ensure build completes successfully.
+
+---
+
+## STEP 8 — VERCEL DEPLOYMENT
+
+Prepare project for deployment to Vercel.
+
+Ensure:
+
+• no absolute localhost dependencies
+• API endpoints configurable via environment variables
+• no runtime errors
+
+---
+
+## STEP 9 — FINAL VALIDATION
+
+Ensure the following works:
+
+npm install → no errors
+npm run dev → starts successfully
+npm run build → builds successfully
+
+---
+
+## OUTPUT
+
+Provide updated:
+
+package.json
+vercel.json
+any required config files
+
+Ensure the project is fully working and ready to deploy on Vercel.

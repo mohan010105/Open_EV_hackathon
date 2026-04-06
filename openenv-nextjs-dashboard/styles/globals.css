@@ -1,0 +1,29 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html, body {
+  background-color: #0d1117;
+  color: #e6edf3;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Thin scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 999px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.25); }
+
+/* Pulse ring animation for active step */
+@keyframes pulse-ring {
+  0%   { transform: scale(0.92); opacity: 1; }
+  100% { transform: scale(1.08); opacity: 0; }
+}
+.pulse-ring { animation: pulse-ring 1s ease-out infinite; }
+
+/* Reward bar fill animation */
+@keyframes bar-grow {
+  from { width: 0; }
+}
+.bar-grow { animation: bar-grow 0.5s ease-out; }

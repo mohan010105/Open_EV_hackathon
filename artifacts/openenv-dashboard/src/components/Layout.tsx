@@ -1,6 +1,6 @@
 import React from "react";
 import { Link, useLocation } from "wouter";
-import { LayoutDashboard, PlayCircle, ListTodo, History, TerminalSquare, Box, Mail, BriefcaseBusiness } from "lucide-react";
+import { LayoutDashboard, PlayCircle, ListTodo, History, TerminalSquare, Box, Mail, BriefcaseBusiness, BarChart3 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const NAV_SECTIONS = [
@@ -18,6 +18,7 @@ const NAV_SECTIONS = [
     items: [
       { href: "/workspace", label: "Runner", icon: BriefcaseBusiness },
       { href: "/workspace/tasks", label: "Tasks", icon: Mail },
+      { href: "/workspace/analytics", label: "Analytics", icon: BarChart3 },
     ],
   },
 ];
