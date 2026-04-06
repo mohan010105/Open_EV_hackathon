@@ -1,0 +1,139 @@
+You are an expert machine learning engineer.
+
+Audit and debug the current ML training pipeline to identify why the model is not training properly, even though a dataset is provided.
+
+Perform a complete end-to-end diagnosis.
+
+---
+
+## STEP 1 — DATASET VALIDATION
+
+Check:
+
+• dataset is loading correctly
+• dataset is not empty
+• data shape is correct
+• labels exist and match inputs
+• no missing or null values
+
+Print sample data:
+
+print(X.shape)
+print(y.shape)
+print(X[:5])
+print(y[:5])
+
+---
+
+## STEP 2 — DATA PREPROCESSING
+
+Verify:
+
+• normalization / scaling is applied
+• categorical encoding is correct
+• tokenization (if NLP) works properly
+• no data leakage
+
+---
+
+## STEP 3 — TRAIN / TEST SPLIT
+
+Ensure:
+
+• proper train-test split
+• no overlap between train and test
+
+---
+
+## STEP 4 — MODEL ARCHITECTURE
+
+Check:
+
+• model input size matches dataset
+• output layer matches number of classes
+• activation functions are correct
+
+---
+
+## STEP 5 — LOSS FUNCTION
+
+Verify:
+
+• correct loss function is used
+
+Examples:
+
+classification → CrossEntropyLoss
+regression → MSELoss
+
+---
+
+## STEP 6 — TRAINING LOOP
+
+Check:
+
+• loss is decreasing
+• gradients are updating
+• optimizer.step() is called
+• zero_grad() is used
+
+Print loss per epoch:
+
+print(f"Epoch {epoch}, Loss: {loss.item()}")
+
+---
+
+## STEP 7 — OVERFITTING / UNDERFITTING
+
+Check:
+
+• training accuracy vs validation accuracy
+
+If:
+
+training low → underfitting
+training high but val low → overfitting
+
+---
+
+## STEP 8 — HYPERPARAMETERS
+
+Check:
+
+• learning rate (too high or too low)
+• batch size
+• number of epochs
+
+---
+
+## STEP 9 — DEBUG VISUALIZATION
+
+Plot:
+
+• loss curve
+• accuracy curve
+
+---
+
+## STEP 10 — COMMON ERRORS
+
+Detect:
+
+• label mismatch
+• wrong data type
+• exploding gradients
+• vanishing gradients
+
+---
+
+## OUTPUT
+
+Identify the root cause of the issue.
+
+Provide:
+
+• exact problem explanation
+• corrected code
+• suggested fixes
+
+Ensure model trains properly and loss decreases.
