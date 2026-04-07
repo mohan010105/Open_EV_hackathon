@@ -1,0 +1,149 @@
+You are an expert machine learning engineer.
+
+Debug and fix an ML pipeline where:
+
+• dataset is provided
+• model is trained
+• but predictions are incorrect in real-time
+• features are not working consistently
+
+Perform a full pipeline audit.
+
+---
+
+## STEP 1 — DATA CONSISTENCY CHECK
+
+Verify:
+
+• training data format matches inference data
+• feature names are identical
+• feature order is consistent
+
+Print:
+
+training columns
+inference input structure
+
+---
+
+## STEP 2 — FEATURE ENGINEERING PIPELINE
+
+Check if preprocessing is reused.
+
+Ensure:
+
+• scaling (StandardScaler / MinMaxScaler) is saved
+• encoding (LabelEncoder / OneHotEncoder) is saved
+• same transformation is applied during inference
+
+Fix:
+
+Save preprocessors:
+
+scaler.fit(X_train)
+joblib.dump(scaler, "scaler.pkl")
+
+Load during inference:
+
+scaler = joblib.load("scaler.pkl")
+X_input = scaler.transform(X_input)
+
+---
+
+## STEP 3 — MODEL SAVE / LOAD
+
+Ensure trained model is used:
+
+joblib.dump(model, "model.pkl")
+
+During inference:
+
+model = joblib.load("model.pkl")
+
+---
+
+## STEP 4 — INPUT SHAPE VALIDATION
+
+Check:
+
+X_train.shape
+X_input.shape
+
+Ensure both match.
+
+---
+
+## STEP 5 — REAL-TIME INPUT DEBUG
+
+Log real-time input:
+
+print("Incoming input:", X_input)
+
+Check for:
+
+• missing features
+• incorrect types
+• null values
+
+---
+
+## STEP 6 — TRAINING QUALITY
+
+Check:
+
+• loss decreasing
+• accuracy improving
+
+If not:
+
+• fix learning rate
+• increase epochs
+• normalize data
+
+---
+
+## STEP 7 — FEATURE IMPORTANCE
+
+Check if features are useful:
+
+model.feature_importances_
+
+If all near zero → model not learning
+
+---
+
+## STEP 8 — END-TO-END TEST
+
+Take one training sample:
+
+X_sample = X_train[0]
+
+Run prediction:
+
+model.predict(X_sample)
+
+Compare with real-time prediction.
+
+---
+
+## STEP 9 — COMMON ROOT CAUSES
+
+Detect and fix:
+
+• feature mismatch
+• scaling not applied
+• model not loaded correctly
+• inconsistent data types
+• incorrect input shape
+
+---
+
+## OUTPUT
+
+Provide:
+
+• root cause of failure
+• corrected training + inference pipeline
+• working code for real-time predictions
+
+Ensure model predictions work correctly in real-time.

@@ -80,3 +80,26 @@ export function useWorkspaceReplay() {
     refetchInterval: 3000,
   });
 }
+
+/** Training pipeline — runs N episodes and returns diagnostics */
+export function useWorkspaceTrain() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (cfg: {
+      episodes: number;
+      task_id?: string;
+      difficulty: string;
+      agent_type: string;
+      learning_rate: number;
+    }) =>
+      fetch(`${BASE}/api/workspace/train`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(cfg),
+      }).then(r => r.json()),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["workspace", "metrics"] });
+      qc.invalidateQueries({ queryKey: ["workspace", "leaderboard"] });
+    },
+  });
+}

@@ -35,6 +35,8 @@ from env.environment import WorkspaceEnvironment
 from replay.replay_logger import ReplayLogger
 from utils.metrics import MetricsTracker
 from utils.leaderboard import Leaderboard
+from utils.preprocessor import ObservationEncoder, FEATURE_NAMES, N_FEATURES
+from utils.agent_io import load_agent, save_agent, agent_summary
 
 # ── Logging ────────────────────────────────────────────────────────────────────
 logging.basicConfig(
@@ -69,6 +71,50 @@ env         = WorkspaceEnvironment()
 replay      = ReplayLogger()
 metrics     = MetricsTracker()
 leaderboard = Leaderboard()
+
+# ── Inference pipeline singletons ──────────────────────────────────────────────
+_ENCODER_PATH = "models/encoder.json"
+_MODEL_PATH   = "models/q_agent.json"
+
+# Lazily initialised — only loaded if models/ files exist
+_encoder: Optional[ObservationEncoder] = None
+_agent                                  = None
+
+def _get_encoder() -> ObservationEncoder:
+    global _encoder
+    if _encoder is None:
+        from pathlib import Path as _Path
+        if _Path(_ENCODER_PATH).exists():
+            _encoder = ObservationEncoder.load(_ENCODER_PATH)
+        else:
+            _encoder = ObservationEncoder().fit()
+    return _encoder
+
+def _get_agent():
+    global _agent
+    from pathlib import Path as _Path
+    if _agent is None and _Path(_MODEL_PATH).exists():
+        _agent = load_agent(_MODEL_PATH)
+    return _agent
+
+# Action catalogue (must match train.py)
+_ACTION_CATALOGUE = [
+    ("open_email_inbox",        {}),
+    ("search_email",            {"sender": "Alex"}),
+    ("search_email",            {"sender": "Sarah"}),
+    ("search_email",            {"sender": "HR"}),
+    ("read_email",              {"email_id": "email_001"}),
+    ("read_email",              {"email_id": "email_002"}),
+    ("read_email",              {"email_id": "email_003"}),
+    ("extract_meeting_details", {}),
+    ("create_calendar_event",   {}),
+    ("view_calendar",           {}),
+    ("view_documents",          {}),
+    ("move_document",           {"document_id": "doc_001", "folder": "Projects"}),
+    ("move_document",           {"document_id": "doc_001", "folder": "HR"}),
+    ("move_document",           {"document_id": "doc_002", "folder": "Projects"}),
+    ("noop",                    {}),
+]
 
 
 # ── Request schemas ────────────────────────────────────────────────────────────
@@ -272,6 +318,247 @@ def reset_leaderboard():
     """Clear the leaderboard."""
     leaderboard.reset()
     return {"status": "leaderboard cleared"}
+
+
+# ── Inference / prediction endpoints ───────────────────────────────────────────
+
+class PredictRequest(BaseModel):
+    observation: dict[str, Any] = Field(..., description="Raw observation dict from /state")
+
+
+@app.post("/predict", tags=["inference"])
+def predict(body: PredictRequest):
+    """
+    STEP 5 fix — real-time prediction endpoint.
+
+    Loads the saved Q-table agent + encoder, validates input, and returns
+    the recommended next action with Q-values.
+
+    Requires a prior call to POST /train (or running train.py) to generate
+    models/q_agent.json and models/encoder.json.
+    """
+    import copy
+    from pathlib import Path as _Path
+
+    enc   = _get_encoder()
+    agent = _get_agent()
+
+    # STEP 5 — validate incoming input
+    val_errors = enc.validate(body.observation)
+    if val_errors:
+        raise HTTPException(
+            status_code=422,
+            detail={"validation_errors": val_errors, "fix": "Ensure observation comes from /state"}
+        )
+
+    if agent is None:
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "error":   "No trained agent found",
+                "fix":     "POST /train first to train and save the agent",
+                "model":   _MODEL_PATH,
+            }
+        )
+
+    # STEP 2 fix — apply the saved encoder (not raw dict)
+    feature_vec = enc.transform(body.observation)
+
+    # STEP 3 fix — use loaded agent (not a new zero Q-table)
+    action_idx = agent.act(feature_vec, explore=False)
+    q_values   = agent.q_values_for(feature_vec)
+    action_name, action_params = _ACTION_CATALOGUE[action_idx]
+
+    return {
+        "action":       action_name,
+        "params":       action_params,
+        "action_idx":   action_idx,
+        "q_values":     [round(v, 4) for v in q_values],
+        "feature_vec":  list(feature_vec),
+        "feature_names": FEATURE_NAMES,
+        "validation":   "passed",
+    }
+
+
+class TrainRequest(BaseModel):
+    episodes:   int                                     = Field(60,        ge=5,   le=500)
+    task_id:    Optional[str]                           = Field(None)
+    difficulty: Literal["easy", "medium", "hard"]      = Field("medium")
+    agent_type: Literal["q_table", "greedy", "random"] = Field("q_table")
+    learning_rate: float                                = Field(0.10, ge=0.001, le=1.0)
+
+
+@app.post("/train", tags=["inference"])
+def train_agent(body: TrainRequest):
+    """
+    Run a training session and save the resulting agent + encoder.
+
+    Returns training diagnostics: reward history, success rate, TD loss,
+    and the resolved root causes from the pipeline audit.
+    """
+    import sys, os
+    sys.path.insert(0, os.path.dirname(__file__))
+
+    import random
+    import time
+    from copy import deepcopy
+    from collections import defaultdict
+
+    enc = ObservationEncoder().fit()
+    enc.save(_ENCODER_PATH)
+
+    global _encoder, _agent
+    _encoder = enc
+    _agent   = None  # reset so next /predict loads fresh
+
+    # ── Inline Q-table agent ────────────────────────────────────────────────
+    N_ACT = len(_ACTION_CATALOGUE)
+
+    class _QAgent:
+        def __init__(self, lr, gamma=0.95, eps=1.0, eps_min=0.05, eps_dec=0.97):
+            self.lr = lr; self.gamma = gamma
+            self.epsilon = eps; self.eps_min = eps_min; self.eps_dec = eps_dec
+            self.Q: dict = defaultdict(lambda: [0.0] * N_ACT)
+            self.td_errors: list = []
+            self._update_count = 0
+            self.q_table_size_val = 0
+
+        def act(self, state, explore=True):
+            if explore and random.random() < self.epsilon:
+                return random.randrange(N_ACT)
+            return int(max(range(N_ACT), key=lambda a: self.Q[state][a]))
+
+        def update(self, s, a, r, s_next, done):
+            q_cur = self.Q[s][a]
+            q_next = 0.0 if done else max(self.Q[s_next])
+            td = r + self.gamma * q_next - q_cur
+            self.Q[s][a] += self.lr * td
+            self.td_errors.append(abs(td))
+            self._update_count += 1
+            self.q_table_size_val = len(self.Q)
+            return abs(td)
+
+        def decay(self):
+            self.epsilon = max(self.eps_min, self.epsilon * self.eps_dec)
+
+    if body.agent_type == "q_table":
+        agent = _QAgent(lr=body.learning_rate)
+    else:
+        agent = None  # greedy/random handled below
+
+    train_rewards: list[float] = []
+    train_success: list[bool]  = []
+    train_losses:  list[float] = []
+    eval_rewards:  list[float] = []
+    eval_success:  list[bool]  = []
+
+    # Greedy playbooks
+    _PLAYBOOKS = {
+        "ws_task_1": [0, 1, 4],
+        "ws_task_2": [0, 1, 4, 7, 8],
+        "ws_task_3": [10, 11],
+    }
+
+    def run_ep(mode_: str, seed_: int, explore_: bool):
+        env_ep = WorkspaceEnvironment()
+        result = env_ep.reset(task_id=body.task_id, difficulty=body.difficulty,
+                              mode=mode_, seed=seed_, agent_name=body.agent_type)
+        obs = result["observation"]
+        task_key = obs.get("task_id", "ws_task_2")
+        state = enc.transform(obs)
+        ep_r = 0.0; ep_l = 0.0; done = False; step = 0
+        playbook = _PLAYBOOKS.get(task_key, [14])
+        pb_step = 0
+
+        while not done and step < 20:
+            if body.agent_type == "q_table":
+                a_idx = agent.act(state, explore=explore_)
+            elif body.agent_type == "greedy":
+                a_idx = playbook[pb_step] if pb_step < len(playbook) else 14
+                pb_step += 1
+            else:
+                a_idx = random.randrange(N_ACT)
+
+            a_name, a_params = _ACTION_CATALOGUE[a_idx]
+            result2 = env_ep.step(a_name, deepcopy(a_params))
+            r = result2["reward"]; done = result2["done"]
+            obs2 = result2["observation"]
+            state2 = enc.transform(obs2)
+
+            if body.agent_type == "q_table":
+                ep_l += agent.update(state, a_idx, r, state2, done)
+
+            ep_r += r; state = state2; step += 1
+
+        if body.agent_type == "q_table":
+            agent.decay()
+
+        sess = env_ep.last_session() or {}
+        return ep_r, sess.get("completed", False), ep_l / max(step, 1)
+
+    t0 = time.time()
+    for ep in range(1, body.episodes + 1):
+        r, s, l = run_ep("training", ep, explore_=True)
+        train_rewards.append(r); train_success.append(s); train_losses.append(l)
+        if ep % max(1, body.episodes // 10) == 0:
+            r_e, s_e, _ = run_ep("evaluation", ep + 10000, explore_=False)
+            eval_rewards.append(r_e); eval_success.append(s_e)
+
+    elapsed = time.time() - t0
+
+    # Save agent
+    if body.agent_type == "q_table":
+        save_agent(agent, _MODEL_PATH)
+        _agent = load_agent(_MODEL_PATH)
+
+    n = len(train_rewards)
+    tail = max(1, n // 5)
+    final_sr = sum(float(s) for s in train_success[-tail:]) / tail
+    initial_r = sum(train_rewards[:max(1, n // 10)]) / max(1, n // 10)
+    final_r   = sum(train_rewards[-tail:]) / tail
+
+    return {
+        "status":          "ok",
+        "agent_type":      body.agent_type,
+        "episodes":        n,
+        "elapsed_s":       round(elapsed, 2),
+        "train_rewards":   [round(r, 4) for r in train_rewards],
+        "train_success":   train_success,
+        "train_losses":    [round(l, 4) for l in train_losses],
+        "eval_rewards":    [round(r, 4) for r in eval_rewards],
+        "eval_success":    eval_success,
+        "final_success_rate": round(final_sr, 4),
+        "reward_delta":    round(final_r - initial_r, 4),
+        "q_table_states":  getattr(agent, "q_table_size_val", 0) if body.agent_type == "q_table" else 0,
+        "update_count":    getattr(agent, "_update_count", 0) if body.agent_type == "q_table" else 0,
+        "model_saved":     _MODEL_PATH if body.agent_type == "q_table" else None,
+        "encoder_saved":   _ENCODER_PATH,
+        "pipeline_fixes":  [
+            "Feature mismatch fixed: ObservationEncoder used at training AND inference",
+            "Scaler saved: models/encoder.json persists between sessions",
+            "Model saved: models/q_agent.json loaded on each /predict call",
+            "Input validated: enc.validate(obs) called before enc.transform(obs)",
+        ],
+    }
+
+
+@app.get("/pipeline_status", tags=["inference"])
+def pipeline_status():
+    """Check whether encoder and model are saved and ready for /predict."""
+    from pathlib import Path as _Path
+    enc_ok   = _Path(_ENCODER_PATH).exists()
+    model_ok = _Path(_MODEL_PATH).exists()
+    summary  = agent_summary(_MODEL_PATH) if model_ok else {}
+    return {
+        "encoder_ready":  enc_ok,
+        "model_ready":    model_ok,
+        "model_path":     _MODEL_PATH,
+        "encoder_path":   _ENCODER_PATH,
+        "feature_names":  FEATURE_NAMES,
+        "n_features":     N_FEATURES,
+        "agent_summary":  summary,
+        "predict_ready":  enc_ok and model_ok and summary.get("q_table_size", 0) > 0,
+    }
 
 
 # ── Entry point ────────────────────────────────────────────────────────────────

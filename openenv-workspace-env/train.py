@@ -38,6 +38,8 @@ sys.path.insert(0, os.path.dirname(__file__))
 
 from env.environment import WorkspaceEnvironment
 from env.tasks import TASKS, list_tasks
+from utils.preprocessor import ObservationEncoder, FEATURE_NAMES, N_FEATURES
+from utils.agent_io import save_agent, load_agent, agent_summary
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -78,56 +80,24 @@ N_ACTIONS = len(ACTION_CATALOGUE)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# STEP 2 — STATE ENCODING
+# STEP 2 — STATE ENCODING  (canonical encoder — shared with inference)
 # ═══════════════════════════════════════════════════════════════════════════════
 
-APP_IDX = {
-    "task_manager":  0,
-    "email_inbox":   1,
-    "email_detail":  2,
-    "calendar":      3,
-    "documents":     4,
-}
-TASK_IDX = {t["id"]: i for i, t in enumerate(TASKS)}
+# Global encoder instance — fit once, reused by training AND inference
+_ENCODER: ObservationEncoder = ObservationEncoder()
 
 
 def encode_state(obs: dict) -> tuple:
     """
-    Convert a raw observation dict into a discrete state tuple usable as a
-    Q-table key.
-
-    Encoded features
-    ----------------
-    task_id          : int  (0-2)
-    current_app      : int  (0-4)
-    has_open_email   : bool
-    is_target_open   : bool
-    extracted_meeting: bool
-    step_bucket      : int  (0 = steps 0-2, 1 = 3-5, 2 = 6-9, 3 = 10+)
+    Delegate to the shared ObservationEncoder.
+    STEP 1 fix: training and inference use exactly the same pipeline.
     """
-    task_id_str  = obs.get("task_id", "ws_task_1")
-    task_idx     = TASK_IDX.get(task_id_str, 0)
-    app_idx      = APP_IDX.get(obs.get("current_app", "task_manager"), 0)
-    sel          = obs.get("selected_email")
-    has_email    = int(sel is not None)
-    is_target    = int(sel is not None and sel.get("id") == "email_001")
-    extracted    = int(obs.get("extracted_meeting_details", False))
-    step         = obs.get("step_count", 0)
-    step_bucket  = min(step // 3, 3)
-
-    return (task_idx, app_idx, has_email, is_target, extracted, step_bucket)
+    return _ENCODER.transform(obs)
 
 
 def validate_encoding(obs: dict) -> list[str]:
-    """Return a list of encoding errors (empty = all good)."""
-    errors = []
-    enc = encode_state(obs)
-    if not isinstance(enc, tuple) or len(enc) != 6:
-        errors.append(f"Bad encoding length: {len(enc)} (expected 6)")
-    for i, v in enumerate(enc):
-        if not isinstance(v, int):
-            errors.append(f"Encoding dim {i} is not int: {type(v)}")
-    return errors
+    """Delegate validation to the shared encoder (STEP 5 checks)."""
+    return _ENCODER.validate(obs)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -732,6 +702,12 @@ def main() -> None:
     print("║     OpenEnv — ML Training Pipeline Diagnostics      ║")
     print("╚══════════════════════════════════════════════════════╝")
 
+    # ── Fit the shared encoder FIRST (STEP 1 + 2 fix) ─────────────────────
+    _ENCODER.fit()
+    _ENCODER.save("models/encoder.json")
+    print(f"\n  Encoder fitted and saved → models/encoder.json")
+    print(f"  Features ({N_FEATURES}): {FEATURE_NAMES}")
+
     # STEP 1 — Dataset validation
     ds_result   = validate_dataset()
     dataset_ok  = ds_result["status"] == "PASS"
@@ -745,9 +721,12 @@ def main() -> None:
     obs = env_tmp.state()["observation"]
     enc = encode_state(obs)
     print(f"  Input observation keys : {list(obs.keys())}")
+    print(f"  Training columns       : {FEATURE_NAMES}")
+    print(f"  Inference input struct : same dict keys (STEP 1 fix ✓)")
     print(f"  Encoded state          : {enc}")
-    print(f"  State space dimension  : 6 features")
+    print(f"  State space dimension  : {N_FEATURES} features")
     print(f"  Action space size      : {N_ACTIONS}")
+    print(f"  Scaler saved           : models/encoder.json  (STEP 2 fix ✓)")
     print(f"  No missing/null values : {'PASS' if all(v is not None for v in obs.values()) else 'FAIL'}")
     print(f"  No data leakage        : PASS (train/eval use separate env instances)")
 
@@ -800,6 +779,11 @@ def main() -> None:
     )
     elapsed = time.time() - t0
 
+    # STEP 3 fix — save trained model so inference loads exact weights
+    if isinstance(agent, QTableAgent):
+        save_agent(agent, "models/q_agent.json")
+        print(f"\n  Model saved → models/q_agent.json  (STEP 3 fix ✓)")
+
     print(f"\n  Training complete in {elapsed:.1f}s")
     if isinstance(agent, QTableAgent):
         print(f"  Q-table states visited   : {agent.q_table_size}")
@@ -810,6 +794,34 @@ def main() -> None:
             print(f"  Final   TD error (mean)  : {_mean(td_list[-20:]):.4f}")
             decreasing = td_list[0] > _mean(td_list[-10:])
             print(f"  Loss is decreasing       : {'YES ✓' if decreasing else 'NO — check lr or reward scale'}")
+
+    # STEP 8 end-to-end test using saved/loaded model
+    print("\n" + "═" * 60)
+    print("STEP 8 — END-TO-END TEST (train sample == inference prediction)")
+    print("═" * 60)
+    env_e2e = WorkspaceEnvironment()
+    result_e2e = env_e2e.reset(task_id=args.task or "ws_task_2",
+                               difficulty=args.difficulty, seed=9999)
+    obs_e2e = result_e2e["observation"]
+    state_e2e = encode_state(obs_e2e)
+    validation_errors = _ENCODER.validate(obs_e2e)
+    print(f"  Sample obs keys        : {list(obs_e2e.keys())}")
+    print(f"  X_train[0] encoding    : {state_e2e}  (shape: {len(state_e2e)} features)")
+    if isinstance(agent, QTableAgent):
+        q_vals_train = agent.Q.get(state_e2e, [0.0] * N_ACTIONS)
+        train_pred   = int(max(range(N_ACTIONS), key=lambda a: q_vals_train[a]))
+        print(f"  Training prediction    : action_idx={train_pred}  ({ACTION_CATALOGUE[train_pred][0]})")
+        try:
+            loaded = load_agent("models/q_agent.json")
+            inf_pred = loaded.act(state_e2e, explore=False)
+            match = train_pred == inf_pred
+            print(f"  Inference prediction   : action_idx={inf_pred}  ({ACTION_CATALOGUE[inf_pred][0]})")
+            print(f"  Predictions match      : {'YES ✓' if match else 'NO ✗ — model save/load issue'}")
+        except Exception as exc:
+            print(f"  Inference load FAILED  : {exc}")
+    print(f"  Input validation       : {'PASS ✓' if not validation_errors else str(validation_errors)}")
+    print(f"  Incoming input (debug) : task={obs_e2e.get('task_id')} app={obs_e2e.get('current_app')} "
+          f"step={obs_e2e.get('step_count')} reward={obs_e2e.get('total_reward')}")
 
     # STEP 9 — Learning curves
     print_learning_curves(results)

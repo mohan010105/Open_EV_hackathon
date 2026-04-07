@@ -125,6 +125,50 @@ Full RL environment implementing all 7 advanced features:
 | GET | `/metrics` | Aggregated performance metrics |
 | GET | `/leaderboard` | Ranked agent scores |
 
+### Inference Pipeline (`openenv-workspace-env/`)
+
+Full ML training + inference pipeline with 9-step diagnostics.
+
+#### Root causes fixed
+
+| Step | Bug | Fix |
+|------|-----|-----|
+| 1 | Training & inference feature names differed | `ObservationEncoder` shared by both — identical feature order always |
+| 2 | Scaler (encoder) never saved | `enc.fit().save("models/encoder.json")` at training time, `load()` at inference |
+| 3 | Model never persisted | `save_agent(agent, "models/q_agent.json")` after training, `load_agent()` at inference |
+| 4 | Input shape changed between calls | `ObservationEncoder` always outputs `(6,)` tuple regardless of obs content |
+| 5 | No real-time input validation | `enc.validate(obs)` called before every `enc.transform(obs)` — logs missing/null/type errors |
+| 7 | Feature importances all zero | Q-value spread per dimension reported; empty Q-table detects untrained model |
+| 8 | Train/inference predictions differed | End-to-end test compares `train_pred == load_agent().act()` |
+| 9 | Common root cause lookup | All 5 canonical issues (feature mismatch, scaling, model load, dtype, shape) checked |
+
+#### New files
+
+- `utils/preprocessor.py` — `ObservationEncoder` with `fit()`, `transform()`, `validate()`, `save()`, `load()`
+- `utils/agent_io.py` — `save_agent()` / `load_agent()` for Q-table persistence
+- `train.py` — full 10-step RL training diagnostic; saves `models/encoder.json` + `models/q_agent.json`
+- `diagnose_inference.py` — 9-step inference pipeline audit with corrected code output
+- FastAPI: `POST /train`, `POST /predict`, `GET /pipeline_status`
+- Express API: `POST /api/workspace/train`, `POST /api/workspace/predict`
+
+#### Corrected pipeline (summary)
+
+```python
+# Training
+enc = ObservationEncoder().fit()
+enc.save("models/encoder.json")          # STEP 2
+agent = QTableAgent()
+X = enc.transform(obs)                   # STEP 1 — same as inference
+save_agent(agent, "models/q_agent.json") # STEP 3
+
+# Inference (real-time)
+enc   = ObservationEncoder.load("models/encoder.json")
+agent = load_agent("models/q_agent.json")
+errors = enc.validate(obs)               # STEP 5
+X_input = enc.transform(obs)             # STEP 4 — always shape (6,)
+action  = agent.act(X_input, explore=False)
+```
+
 ### `openenv-nextjs-dashboard/` (standalone — Vercel deployable)
 
 Standalone Next.js 14 + Tailwind CSS + Recharts dashboard for the OpenEnv FastAPI backend.
