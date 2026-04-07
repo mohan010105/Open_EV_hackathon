@@ -47,27 +47,27 @@ export default function Controls({ onReset, onStep, onDemo, loading, demoRunning
       <Card title="🔄 Reset Episode">
         <div className="grid grid-cols-2 gap-3 mb-3">
           <div>
-            <label className="text-[11px] text-gray-500 uppercase tracking-wider block mb-1">Task</label>
+            <label className="text-[11px] text-grey-500  uppercase tracking-wider block mb-1">Task</label>
             <select value={taskId} onChange={e => setTaskId(e.target.value)} className={selectCls}>
-              <option value="">Random</option>
-              <option value="ws_task_1">Task 1 — Email Retrieval</option>
-              <option value="ws_task_2">Task 2 — Meeting Scheduling</option>
-              <option value="ws_task_3">Task 3 — Document Organization</option>
+              <option className="bg-black text-white" value="">Random</option>
+              <option className="bg-black text-white" value="ws_task_1">Task 1 — Email Retrieval</option>
+              <option className="bg-black text-white" value="ws_task_2">Task 2 — Meeting Scheduling</option>
+              <option className="bg-black text-white" value="ws_task_3">Task 3 — Document Organization</option>
             </select>
           </div>
           <div>
             <label className="text-[11px] text-gray-500 uppercase tracking-wider block mb-1">Difficulty</label>
             <select value={difficulty} onChange={e => setDiff(e.target.value)} className={selectCls}>
-              <option value="easy">Easy</option>
-              <option value="medium">Medium</option>
-              <option value="hard">Hard</option>
+              <option className="bg-black text-white" value="easy">Easy</option>
+              <option className="bg-black text-white" value="medium">Medium</option>
+              <option className="bg-black text-white" value="hard">Hard</option>
             </select>
           </div>
           <div>
             <label className="text-[11px] text-gray-500 uppercase tracking-wider block mb-1">Mode</label>
             <select value={mode} onChange={e => setMode(e.target.value)} className={selectCls}>
-              <option value="training">Training</option>
-              <option value="evaluation">Evaluation</option>
+              <option className="bg-black text-white" value="training">Training</option>
+              <option className="bg-black text-white" value="evaluation">Evaluation</option>
             </select>
           </div>
           <div>
@@ -85,7 +85,7 @@ export default function Controls({ onReset, onStep, onDemo, loading, demoRunning
         <div className="mb-3">
           <label className="text-[11px] text-gray-500 uppercase tracking-wider block mb-1">Action</label>
           <select value={action} onChange={e => setAction(e.target.value)} className={selectCls}>
-            {displayActions.map(a => <option key={a} value={a}>{a}</option>)}
+            {displayActions.map(a => <option className="bg-black text-white" key={a} value={a}>{a}</option>)}
           </select>
         </div>
         <div className="mb-3">

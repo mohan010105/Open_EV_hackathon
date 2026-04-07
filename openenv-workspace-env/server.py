@@ -151,40 +151,54 @@ def health_check():
 
 @app.post("/reset", tags=["environment"])
 def reset(body: ResetRequest = ResetRequest()):
-    """
-    Reset the environment and begin a new episode.
+    """Reset the environment and begin a new episode. Always returns 200."""
+    try:
+        result = env.reset(
+            task_id=body.task_id,
+            seed=body.seed,
+            difficulty=body.difficulty,
+            mode=body.mode,
+            agent_name=body.agent_name,
+        )
+        obs        = result["observation"]
+        state_data = env.state()
 
-    Accepts optional task_id, seed, difficulty, mode, and agent_name.
-    """
-    result = env.reset(
-        task_id=body.task_id,
-        seed=body.seed,
-        difficulty=body.difficulty,
-        mode=body.mode,
-        agent_name=body.agent_name,
-    )
-    obs        = result["observation"]
-    state_data = env.state()
-
-    replay.begin_episode(
-        session_id=state_data.get("session_id", ""),
-        task_id=obs.get("task_id", ""),
-        task_name=obs.get("current_task", ""),
-    )
-    log.info(
-        "/reset  task=%s diff=%s mode=%s agent=%s",
-        obs.get("task_id"), body.difficulty, body.mode, body.agent_name,
-    )
-    return result
+        replay.begin_episode(
+            session_id=state_data.get("session_id", ""),
+            task_id=obs.get("task_id", ""),
+            task_name=obs.get("current_task", ""),
+        )
+        log.info("/reset task=%s diff=%s mode=%s agent=%s",
+                 obs.get("task_id"), body.difficulty, body.mode, body.agent_name)
+        return result
+    except Exception as exc:
+        log.error("/reset failed: %s", exc)
+        # STEP 5 — stable fallback response
+        return {
+            "observation": env.state().get("observation", {}),
+            "reward":      0.0,
+            "done":        False,
+            "info":        {"error": str(exc)},
+        }
 
 
 @app.post("/step", tags=["environment"])
 def step(body: StepRequest):
-    """Apply an action and advance the episode by one step."""
-    if not body.action:
-        raise HTTPException(status_code=400, detail="'action' is required")
+    """Apply an action and advance the episode. Always returns 200."""
+    # STEP 6: default to noop if action is empty
+    action = body.action if body.action else "noop"
 
-    result = env.step(action=body.action, params=body.params)
+    try:
+        result = env.step(action=action, params=body.params)
+    except Exception as exc:
+        log.error("/step failed: %s — returning noop result", exc)
+        return {
+            "observation": env.state().get("observation", {}),
+            "reward":      0.0,
+            "done":        False,
+            "info":        {"error": str(exc), "fallback_action": "noop"},
+        }
+
     obs    = result["observation"]
     info   = result.get("info", {})
 
@@ -241,8 +255,18 @@ def step(body: StepRequest):
 
 @app.get("/state", tags=["environment"])
 def get_state():
-    """Return current environment state without stepping."""
-    return env.state()
+    """Return current environment state without stepping. Always returns 200."""
+    try:
+        return env.state()
+    except Exception as exc:
+        log.error("/state failed: %s", exc)
+        return {
+            "observation": {},
+            "session_id":  "",
+            "is_active":   False,
+            "created_at":  "",
+            "error":       str(exc),
+        }
 
 
 @app.get("/episode_replay", tags=["replay"])
@@ -329,55 +353,75 @@ class PredictRequest(BaseModel):
 @app.post("/predict", tags=["inference"])
 def predict(body: PredictRequest):
     """
-    STEP 5 fix — real-time prediction endpoint.
+    Real-time prediction endpoint. Never crashes — falls back to 'noop' on failure.
 
-    Loads the saved Q-table agent + encoder, validates input, and returns
-    the recommended next action with Q-values.
-
-    Requires a prior call to POST /train (or running train.py) to generate
-    models/q_agent.json and models/encoder.json.
+    STEP 3: validates input before encoding.
+    STEP 5: returns stable {action, params, ...} always.
+    STEP 6: action = 'noop' when model not available or validation fails.
+    STEP 7: prints Action + Reward to stdout for debugging.
     """
-    import copy
-    from pathlib import Path as _Path
+    try:
+        enc = _get_encoder()
 
-    enc   = _get_encoder()
-    agent = _get_agent()
-
-    # STEP 5 — validate incoming input
-    val_errors = enc.validate(body.observation)
-    if val_errors:
-        raise HTTPException(
-            status_code=422,
-            detail={"validation_errors": val_errors, "fix": "Ensure observation comes from /state"}
-        )
-
-    if agent is None:
-        raise HTTPException(
-            status_code=503,
-            detail={
-                "error":   "No trained agent found",
-                "fix":     "POST /train first to train and save the agent",
-                "model":   _MODEL_PATH,
+        # STEP 3 — validate incoming input
+        val_errors = enc.validate(body.observation)
+        if val_errors:
+            log.warning("/predict validation errors: %s — using noop", val_errors)
+            print("Action: noop  (validation failed)")
+            print("Reward: 0.000  (no step taken)")
+            return {
+                "action":           "noop",
+                "params":           {},
+                "action_idx":       14,
+                "feature_vec":      [],
+                "feature_names":    FEATURE_NAMES,
+                "validation":       "failed",
+                "validation_errors": val_errors,
+                "fallback":         True,
             }
-        )
 
-    # STEP 2 fix — apply the saved encoder (not raw dict)
-    feature_vec = enc.transform(body.observation)
+        # STEP 2 — apply the saved encoder (not raw dict)
+        feature_vec = enc.transform(body.observation)
+        agent = _get_agent()
 
-    # STEP 3 fix — use loaded agent (not a new zero Q-table)
-    action_idx = agent.act(feature_vec, explore=False)
-    q_values   = agent.q_values_for(feature_vec)
-    action_name, action_params = _ACTION_CATALOGUE[action_idx]
+        # STEP 6 — noop fallback when no trained model is available
+        if agent is None:
+            log.warning("/predict: no trained agent — returning noop fallback")
+            action_name, action_params = "noop", {}
+            action_idx = 14
+        else:
+            # STEP 1 — use loaded agent (not a new zero Q-table)
+            action_idx = agent.act(feature_vec, explore=False)
+            action_name, action_params = _ACTION_CATALOGUE[action_idx]
 
-    return {
-        "action":       action_name,
-        "params":       action_params,
-        "action_idx":   action_idx,
-        "q_values":     [round(v, 4) for v in q_values],
-        "feature_vec":  list(feature_vec),
-        "feature_names": FEATURE_NAMES,
-        "validation":   "passed",
-    }
+        # STEP 7 — minimal debug output
+        print(f"Action: {action_name}")
+        print(f"Reward: N/A (prediction only — call /step to get reward)")
+
+        return {
+            "action":        action_name,
+            "params":        action_params,
+            "action_idx":    action_idx,
+            "feature_vec":   list(feature_vec),
+            "feature_names": FEATURE_NAMES,
+            "validation":    "passed",
+            "fallback":      agent is None,
+        }
+
+    except Exception as exc:
+        log.error("/predict exception: %s — returning noop", exc)
+        print(f"Action: noop  (exception: {exc})")
+        print("Reward: 0.000")
+        return {
+            "action":     "noop",
+            "params":     {},
+            "action_idx": 14,
+            "feature_vec": [],
+            "feature_names": FEATURE_NAMES,
+            "validation": "error",
+            "error":      str(exc),
+            "fallback":   True,
+        }
 
 
 class TrainRequest(BaseModel):
@@ -470,7 +514,7 @@ def train_agent(body: TrainRequest):
         playbook = _PLAYBOOKS.get(task_key, [14])
         pb_step = 0
 
-        while not done and step < 20:
+        while not done and step < 15:  # STEP 4: cap at MAX_STEPS=15
             if body.agent_type == "q_table":
                 a_idx = agent.act(state, explore=explore_)
             elif body.agent_type == "greedy":
