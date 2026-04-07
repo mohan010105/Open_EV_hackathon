@@ -1,24 +1,14 @@
 """
-inference.py — OpenEnv Workspace Assistant inference loop.
+inference.py — OpenEnv Workspace Assistant ML inference loop.
 
-STEP 4  : MAX_STEPS capped at 12 (env var override: MAX_STEPS=N).
-STEP 6  : fallback action = "noop" on any LLM or parse failure.
-STEP 7  : minimal print-level logs for action + reward every step.
-STEP 9  : stops cleanly when done or MAX_STEPS reached; handles all failures.
-
-Environment variables
----------------------
-  API_BASE_URL  – base URL of the running FastAPI server  (default: http://localhost:7860)
-  MODEL_NAME    – OpenAI-compatible model name            (default: gpt-4o-mini)
-  HF_TOKEN      – HuggingFace / OpenAI API key
-  TASK_ID       – optional task to run                   (default: random)
-  MAX_STEPS     – episode step limit                     (default: 12)
-
-Usage
------
-  export HF_TOKEN=hf_...
-  export API_BASE_URL=https://your-space.hf.space
-  python inference.py
+STEP 1: REMOVE UNNECESSARY COMPUTATION: no retraining, no LLM queries, no heavy loops.
+STEP 2: FIX ML PIPELINE: Uses pre-trained `q_agent.json` and saved `encoder.json`.
+STEP 3: INPUT VALIDATION: Validates inputs before scaling via `ObservationEncoder.validate(obs)`.
+STEP 4: FAST INFERENCE MODE: Capped at 15 steps; handles runtime limits cleanly.
+STEP 5: STABLE API RESPONSES: Enforced via safe_step() with required keys.
+STEP 6: ADD FALLBACK ACTION: "noop" used when models fail or invalid inputs occur.
+STEP 7: LOGGING + DEBUG: Action, Reward displayed; minimal stdout.
+STEP 9: INFERENCE SCRIPT OPTIMIZATION: Handles failures gracefully, stops when done.
 """
 
 from __future__ import annotations
@@ -28,22 +18,23 @@ import logging
 import os
 import sys
 import time
+from copy import deepcopy
 from typing import Any
 
 import httpx
-from openai import OpenAI
+
+# ── ML Components Import ───────────────────────────────────────────────────────
+sys.path.insert(0, os.path.dirname(__file__))
+from utils.preprocessor import ObservationEncoder
+from utils.agent_io import load_agent
 
 # ── Configuration ──────────────────────────────────────────────────────────────
 API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:7860").rstrip("/")
-MODEL_NAME   = os.getenv("MODEL_NAME",   "gpt-4o-mini")
-HF_TOKEN     = os.getenv("HF_TOKEN",     "")
 TASK_ID      = os.getenv("TASK_ID",      "")
 
-# STEP 4: cap at 12 by default; caller can raise via env var (max 15)
+# STEP 4: FAST INFERENCE MODE limit
 MAX_STEPS    = min(15, max(1, int(os.getenv("MAX_STEPS", "12"))))
-
-# Runtime guard — abort if wall-clock exceeds this (STEP 4)
-MAX_WALL_SECONDS = 18 * 60   # 18 minutes → leaves 2 min margin
+MAX_WALL_SECONDS = 19 * 60  # Ensure runtime < 20 minutes
 
 logging.basicConfig(
     level=logging.INFO,
@@ -52,41 +43,42 @@ logging.basicConfig(
 )
 log = logging.getLogger(__name__)
 
-# ── OpenAI client ──────────────────────────────────────────────────────────────
-client = OpenAI(
-    api_key=HF_TOKEN or "hf_anonymous",
-    base_url=f"{API_BASE_URL}/v1" if HF_TOKEN else None,
-)
-
-# ── STEP 6: canonical fallback ─────────────────────────────────────────────────
+# STEP 6: ADD FALLBACK ACTION
 FALLBACK_ACTION = "noop"
 FALLBACK_PARAMS: dict = {}
 
-# ── HTTP helpers ───────────────────────────────────────────────────────────────
+ENCODER_PATH = os.path.join(os.path.dirname(__file__), "models", "encoder.json")
+MODEL_PATH = os.path.join(os.path.dirname(__file__), "models", "q_agent.json")
+
+ACTION_CATALOGUE = [
+    ("open_email_inbox",        {}),
+    ("search_email",            {"sender": "Alex"}),
+    ("search_email",            {"sender": "Sarah"}),
+    ("search_email",            {"sender": "HR"}),
+    ("read_email",              {"email_id": "email_001"}),
+    ("read_email",              {"email_id": "email_002"}),
+    ("read_email",              {"email_id": "email_003"}),
+    ("extract_meeting_details", {}),
+    ("create_calendar_event",   {}),
+    ("view_calendar",           {}),
+    ("view_documents",          {}),
+    ("move_document",           {"document_id": "doc_001", "folder": "Projects"}),
+    ("move_document",           {"document_id": "doc_001", "folder": "HR"}),
+    ("move_document",           {"document_id": "doc_002", "folder": "Projects"}),
+    ("noop",                    {}),
+]
+
+# ── API Helpers ────────────────────────────────────────────────────────────────
 
 def _post(path: str, payload: dict | None = None) -> dict:
-    """POST to the environment server; raise on HTTP error."""
     resp = httpx.post(f"{API_BASE_URL}{path}", json=payload or {}, timeout=30)
     resp.raise_for_status()
     return resp.json()
 
-
-def _get(path: str) -> dict:
-    resp = httpx.get(f"{API_BASE_URL}{path}", timeout=30)
-    resp.raise_for_status()
-    return resp.json()
-
-
-# ── STEP 5: safe step wrapper — always returns {observation, reward, done} ─────
-
 def safe_step(action: str, params: dict) -> dict:
-    """
-    Call /step and guarantee the response always contains
-    observation, reward, and done — no crashes allowed.
-    """
+    """STEP 5: STABLE API RESPONSES. Ensures observation, reward and done exist."""
     try:
         result = _post("/step", {"action": action, "params": params})
-        # Ensure required keys are present (defensive)
         return {
             "observation": result.get("observation", {}),
             "reward":      float(result.get("reward", 0.0)),
@@ -102,91 +94,15 @@ def safe_step(action: str, params: dict) -> dict:
             "info":        {"error": str(exc), "fallback": True},
         }
 
-
-# ── Prompt builders ────────────────────────────────────────────────────────────
-
-SYSTEM_PROMPT = """\
-You are an AI agent operating inside the OpenEnv Workspace Assistant environment.
-Complete the task by choosing ONE action per turn from available_actions.
-
-Respond ONLY with a valid JSON object:
-{
-  "action": "<action_name>",
-  "params": {}
-}
-
-Parameter reference:
-  search_email        → {"sender": "<name>"}
-  read_email          → {"email_id": "<id>"}
-  move_document       → {"document_id": "<id>", "folder": "<folder>"}
-  All other actions   → no params needed
-
-No explanation, no markdown — pure JSON only.
-"""
-
-
-def build_user_message(obs: dict) -> str:
-    lines = [
-        f"TASK: {obs.get('task_description', '')}",
-        f"APP:  {obs.get('current_app', 'unknown')}",
-        f"STEP: {obs.get('step_count', 0)}  REWARD: {obs.get('total_reward', 0.0):.3f}",
-        f"ACTIONS: {', '.join(obs.get('available_actions', ['noop']))}",
-    ]
-
-    if obs.get("email_list"):
-        lines.append("\nEMAILS:")
-        for e in obs["email_list"]:
-            flag = "[UNREAD]" if not e.get("read") else "[read]"
-            mtg  = " [meeting]" if e.get("has_meeting_details") else ""
-            lines.append(f"  {flag} id={e['id']} from={e['sender']!r} subj={e['subject']!r}{mtg}")
-
-    if obs.get("selected_email"):
-        em = obs["selected_email"]
-        lines.append(f"\nOPEN EMAIL ({em['id']}) — {em['sender']}: {em['subject']}")
-        lines.append(em.get("body", "")[:300])
-
-    if obs.get("calendar_events"):
-        lines.append("\nCALENDAR:")
-        for ev in obs["calendar_events"]:
-            new = " [NEW]" if ev.get("created_from_email") else ""
-            lines.append(f"  {ev.get('date','?')} {ev.get('time','?')} — {ev.get('title','?')}{new}")
-
-    if obs.get("documents"):
-        lines.append("\nDOCS:")
-        for d in obs["documents"]:
-            lines.append(f"  {d['id']} {d['name']!r} → {d['folder']!r}")
-
-    return "\n".join(lines)
-
-
-# ── STEP 3: input validation helper ───────────────────────────────────────────
-
-def validate_obs(obs: dict) -> list[str]:
-    """Return a list of validation errors; empty = OK."""
-    errors: list[str] = []
-    required = ["task_id", "current_app", "available_actions",
-                "email_list", "documents", "calendar_events",
-                "step_count", "total_reward"]
-    for k in required:
-        if k not in obs:
-            errors.append(f"MISSING: {k!r}")
-        elif obs[k] is None:
-            errors.append(f"NULL: {k!r}")
-    if "available_actions" in obs and obs["available_actions"] is not None:
-        if not isinstance(obs["available_actions"], list):
-            errors.append("available_actions must be a list")
-    return errors
-
-
-# ── Main episode loop ──────────────────────────────────────────────────────────
+# ── Main ML Loop ───────────────────────────────────────────────────────────────
 
 def run_episode() -> dict[str, Any]:
     log.info("=" * 60)
-    log.info("OpenEnv inference | api=%s model=%s task=%s max_steps=%d",
-             API_BASE_URL, MODEL_NAME, TASK_ID or "(random)", MAX_STEPS)
+    log.info("OpenEnv ML inference | api=%s task=%s max_steps=%d",
+             API_BASE_URL, TASK_ID or "(random)", MAX_STEPS)
     log.info("=" * 60)
 
-    # 1. Reset — STEP 5: safe, always returns well-formed dict
+    # 1. Reset
     try:
         reset_payload = {"task_id": TASK_ID} if TASK_ID else {}
         result = _post("/reset", reset_payload)
@@ -195,66 +111,57 @@ def run_episode() -> dict[str, Any]:
         log.error("Failed to reset environment: %s", exc)
         return {"error": str(exc), "done": False, "steps": 0}
 
+    # STEP 2: FIX ML PIPELINE
+    enc = None
+    agent = None
+    try:
+        enc = ObservationEncoder.load(ENCODER_PATH)
+        agent = load_agent(MODEL_PATH)
+    except Exception as exc:
+        log.error("Failed to load encoder or model: %s. Using fallback agent.", exc)
+
     episode_reward = 0.0
     step_log: list[dict] = []
-    history:  list[dict] = []
     wall_start = time.time()
 
+    done = False
+    step_n = 0
+
     for step_n in range(1, MAX_STEPS + 1):
-        # STEP 4: wall-clock runtime guard
         if time.time() - wall_start > MAX_WALL_SECONDS:
             log.warning("Wall-clock limit reached — stopping early at step %d", step_n)
             break
 
         obs = result.get("observation", {})
-
-        # STEP 3: validate incoming obs
-        val_errors = validate_obs(obs)
-        if val_errors:
-            log.warning("Observation validation errors: %s — using noop", val_errors)
-            result = safe_step(FALLBACK_ACTION, FALLBACK_PARAMS)
-            continue
-
-        # 2. Build prompt
-        user_msg = build_user_message(obs)
-        history.append({"role": "user", "content": user_msg})
-
-        # 3. Query LLM — STEP 6: fallback to noop on any failure
         action, params = FALLBACK_ACTION, FALLBACK_PARAMS
-        try:
-            completion = client.chat.completions.create(
-                model=MODEL_NAME,
-                messages=[{"role": "system", "content": SYSTEM_PROMPT}] + history[-10:],
-                temperature=0.0,
-                max_tokens=128,
-            )
-            raw = completion.choices[0].message.content.strip()
-            history.append({"role": "assistant", "content": raw})
 
-            # 4. Parse action — STEP 6: fallback on bad JSON
-            action_obj = json.loads(raw)
-            action = action_obj.get("action") or FALLBACK_ACTION
-            params = action_obj.get("params") or {}
-            if not isinstance(params, dict):
-                params = {}
+        if enc and agent:
+            # STEP 3: INPUT VALIDATION
+            val_errors = enc.validate(obs)
+            if val_errors:
+                log.warning("Observation validation errors: %s — using noop", val_errors)
+            else:
+                try:
+                    # STEP 1: REMOVE UNNECESSARY COMPUTATION
+                    X_input = enc.transform(obs)
+                    action_idx = agent.act(X_input, explore=False)
+                    action, params = ACTION_CATALOGUE[action_idx]
+                    params = deepcopy(params)
+                except Exception as exc:
+                    log.error("Inference prediction failed (%s) — using fallback noop", exc)
+        else:
+            log.debug("ML Pipeline missing — using fallback noop")
 
-        except json.JSONDecodeError:
-            log.warning("step %d: bad JSON from model → noop", step_n)
-            history.append({"role": "assistant", "content": '{"action":"noop","params":{}}'})
-        except Exception as exc:
-            log.warning("step %d: LLM call failed (%s) → noop", step_n, exc)
-            history.append({"role": "assistant", "content": '{"action":"noop","params":{}}'})
-
-        # 5. Step — STEP 5: safe wrapper, no crashes
-        result  = safe_step(action, params)
-        reward  = result["reward"]
-        done    = result["done"]
-        info    = result.get("info", {})
+        # Execute Step
+        result = safe_step(action, params)
+        reward = result["reward"]
+        done   = result["done"]
+        info   = result.get("info", {})
         episode_reward += reward
 
-        # STEP 7: minimal required logs
+        # STEP 7: LOGGING + DEBUG
         print(f"Action: {action}")
-        print(f"Reward: {reward:+.3f}")
+        print(f"Reward: {reward}")
 
         step_log.append({
             "step":   step_n,
@@ -266,26 +173,17 @@ def run_episode() -> dict[str, Any]:
             "valid":  info.get("action_valid", True),
         })
 
-        log.info(
-            "step %2d | %-25s reward=%+.3f  total=%.3f  %s",
-            step_n, action, reward,
-            result["observation"].get("total_reward", 0.0),
-            "✓" if info.get("action_valid", True) else "✗ " + info.get("reason", ""),
-        )
-
         if done:
             grade = info.get("grade", {})
             log.info(
-                "Episode DONE | score=%.2f  passed=%s  feedback=%s",
+                "Episode DONE | score=%.2f  passed=%s",
                 grade.get("score", 0.0),
                 grade.get("passed", False),
-                grade.get("feedback", ""),
             )
             break
 
-        time.sleep(0.05)   # minimal throttle — keeps runtime well under 20 min
+        time.sleep(0.01)
 
-    # 6. Summary
     final_obs = result.get("observation", {})
     summary = {
         "task_id":        final_obs.get("task_id", TASK_ID or "unknown"),
@@ -295,19 +193,15 @@ def run_episode() -> dict[str, Any]:
         "done":           done,
         "step_log":       step_log,
     }
+    
     log.info("SUMMARY: %s", json.dumps(summary, indent=2))
     return summary
-
 
 if __name__ == "__main__":
     try:
         run_episode()
     except httpx.ConnectError:
-        log.error(
-            "Cannot connect to %s — is the server running?\n"
-            "  Start it with:  uvicorn server:app --port 7860",
-            API_BASE_URL,
-        )
+        log.error("Cannot connect to %s — is the server running?", API_BASE_URL)
         sys.exit(1)
     except KeyboardInterrupt:
         log.info("Interrupted by user.")
