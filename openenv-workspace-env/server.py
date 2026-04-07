@@ -257,11 +257,23 @@ def step(body: StepRequest):
 def get_state():
     """Return current environment state without stepping. Always returns 200."""
     try:
-        return env.state()
+        st = env.state()
+        return {
+            "observation": st.get("observation", {}),
+            "reward": 0.0,
+            "done": not st.get("is_active", True),
+            "session_id": st.get("session_id", ""),
+            "is_active": st.get("is_active", False),
+            "difficulty": st.get("difficulty", "medium"),
+            "mode": st.get("mode", "training"),
+            "created_at": st.get("created_at", "")
+        }
     except Exception as exc:
         log.error("/state failed: %s", exc)
         return {
             "observation": {},
+            "reward": 0.0,
+            "done": False,
             "session_id":  "",
             "is_active":   False,
             "created_at":  "",

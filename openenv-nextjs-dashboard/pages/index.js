@@ -30,6 +30,8 @@ const TABS = ["Live State", "Replay", "Metrics", "Leaderboard"];
 export default function Home() {
   // ── Core state ──────────────────────────────────────────────────────────────
   const [obs,         setObs]         = useState(null);
+  const [step,        setStep]        = useState(0);
+  const [reward,      setReward]      = useState(0.0);
   const [sessionMeta, setMeta]        = useState({});
   const [replayData,  setReplay]      = useState(null);
   const [metricsData, setMetrics]     = useState(null);
@@ -42,13 +44,29 @@ export default function Home() {
   const [stepLog,     setStepLog]     = useState([]);
   const demoAbort = useRef(false);
 
+  // ── Helper ───────────────────────────────────────────────────────────────────
+  function updateState(data) {
+    if (data.observation) {
+      setObs(data.observation);
+    }
+    if (data.step !== undefined || data.observation?.step_count !== undefined) {
+      setStep(data.step ?? data.observation?.step_count ?? 0);
+    }
+    if (data.reward !== undefined || data.observation?.total_reward !== undefined) {
+      setReward(data.reward ?? data.observation?.total_reward ?? 0.0);
+    }
+  }
+
   // ── Polling ──────────────────────────────────────────────────────────────────
   const fetchState = useCallback(async () => {
     try {
       const r = await api("GET", "/state");
-      if (r.observation) setObs(r.observation);
+      updateState(r);
       setMeta({ session_id: r.session_id, is_active: r.is_active, difficulty: r.difficulty, mode: r.mode });
-    } catch { /* silent */ }
+      setError((prev) => prev === "Unable to connect to environment API." ? "" : prev);
+    } catch (e) { 
+      setError("Unable to connect to environment API.");
+    }
   }, []);
 
   const fetchReplay = useCallback(async () => {
@@ -74,39 +92,58 @@ export default function Home() {
   async function handleReset(body = {}) {
     setLoading(true); setError(""); setStepLog([]);
     try {
-      const r = await api("POST", "/reset", body);
-      if (r.observation) setObs(r.observation);
+      const res = await fetch(`${API}/reset`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body)
+      });
+      const data = await res.json();
+      console.log("API response:", data);
+      console.log("Reset response:", data);
+      
+      updateState(data);
       showToast("Episode reset", "green");
       await fetchReplay(); await fetchState();
-    } catch (e) {
-      setError(e.message); showToast("Reset failed", "red");
+    } catch (error) {
+      console.error("API error:", error);
+      setError(error.message || "Failed to reset"); showToast("Reset failed", "red");
     } finally { setLoading(false); }
   }
 
   async function handleStep(action, params = {}) {
     setLoading(true); setError("");
     try {
-      const r = await api("POST", "/step", { action, params });
-      if (r.observation) setObs(r.observation);
+      const res = await fetch(`${API}/step`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action, params })
+      });
+      const data = await res.json();
+      console.log("API response:", data);
+      console.log("Step response:", data);
+      
+      updateState(data);
+      
       const entry = {
-        step:   r.observation?.step_count ?? "?",
+        step:   data.observation?.step_count ?? data.step ?? "?",
         action,
-        reward: r.reward,
-        done:   r.done,
-        reason: r.info?.reason || "",
-        valid:  r.info?.action_valid !== false,
+        reward: data.reward,
+        done:   data.done,
+        reason: data.info?.reason || "",
+        valid:  data.info?.action_valid !== false,
       };
       setStepLog(prev => [...prev, entry]);
       await fetchReplay();
-      if (r.done) {
-        const grade = r.info?.grade;
+      if (data.done) {
+        const grade = data.info?.grade;
         showToast(grade?.passed ? `✅ Task complete! Score: ${grade?.score?.toFixed(2)}` : "Episode ended", grade?.passed ? "green" : "yellow");
         await fetchMetrics(); await fetchLb();
         setTab("Replay");
       }
-      return r;
-    } catch (e) {
-      setError(e.message); showToast(e.message, "red");
+      return data;
+    } catch (error) {
+      console.error("API error:", error);
+      setError(error.message || "Failed to step"); showToast(error.message || "Step failed", "red");
     } finally { setLoading(false); }
   }
 
@@ -143,8 +180,8 @@ export default function Home() {
   }
 
   // ── Derived values ───────────────────────────────────────────────────────────
-  const totalReward  = obs?.total_reward   ?? 0;
-  const stepCount    = obs?.step_count     ?? 0;
+  const totalReward  = reward;
+  const stepCount    = step;
   const isActive     = sessionMeta.is_active ?? false;
   const rewardPct    = Math.round(totalReward * 100);
 

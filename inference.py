@@ -264,6 +264,7 @@ def run_inference():
             print(f"Task passed: {grade.get('passed', False)}")
             print(f"Feedback: {grade.get('feedback', '')}")
             print("=" * 60)
+            break
 
     if not done:
         print()

@@ -181,12 +181,16 @@ class WebNavigationEnvironment:
                     "step_count": 0,
                     "total_reward": 0.0,
                 },
+                "reward": 0.0,
+                "done": False,
                 "session_id": "",
                 "is_active": False,
                 "created_at": datetime.utcnow().isoformat(),
             }
         return {
             "observation": build_observation(self._state, self._task),
+            "reward": 0.0,
+            "done": self._state.is_done,
             "session_id": self._state.session_id,
             "is_active": not self._state.is_done,
             "created_at": self._state.created_at,
