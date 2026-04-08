@@ -1,158 +1,63 @@
-# 🚀 AI Workspace Assistant Environment (OpenEnv)
+---
+
+title: OpenEnv Workspace Assistant
+emoji: 🗂️
+colorFrom: blue
+colorTo: violet
+sdk: docker
+app_port: 7860
+pinned: false
+-------------
+
+# OpenEnv Workspace Assistant — Meta OpenEnv Hackathon
+
+[![Hugging Face Space](https://img.shields.io/badge/🤗%20HF%20Space-Running-green)](https://huggingface.co/spaces/visshaalpvt/support-agent-env)
+[![GitHub](https://img.shields.io/badge/GitHub-Public-blue)](https://github.com/mohan010105/Open_EV_hackathon)
+
+
+---
 
 ## 🧠 Overview
 
-The **AI Workspace Assistant Environment** is a complete OpenEnv-compatible simulation platform designed to train and evaluate AI agents on real-world digital productivity tasks.
+**OpenEnv Workspace Assistant** is a real-world reinforcement learning environment built for the Meta OpenEnv Hackathon.
 
-This project simulates a **digital workspace** where an AI agent interacts with tools such as:
+It simulates a **digital productivity workspace** where an AI agent learns to:
 
-* 📧 Email Inbox
-* 📅 Calendar
-* 📂 Document Management
+* 📧 Read and search emails
+* 📅 Schedule meetings
+* 📂 Organize documents
 
-The agent learns to perform multi-step tasks like:
-
-* Finding emails
-* Scheduling meetings
-* Organizing documents
+The agent interacts using a standard OpenEnv API (`reset`, `step`, `state`) and receives rewards based on task completion.
 
 ---
 
-## 🎯 Problem Statement
+## 🎯 Tasks
 
-Build a real-world OpenEnv environment that supports:
-
-* Standard RL interface (`reset`, `step`, `state`)
-* Task-based learning
-* Automated grading system
-* LLM-based agent interaction
-* Real-time evaluation
+| # | Difficulty | Task                  | Description                           |
+| - | ---------- | --------------------- | ------------------------------------- |
+| 1 | Easy       | Email Retrieval       | Find and read Alex's email            |
+| 2 | Medium     | Meeting Scheduling    | Extract meeting info and create event |
+| 3 | Hard       | Document Organization | Move document to correct folder       |
 
 ---
 
-## 🏗️ System Architecture
+## 📊 Scoring System
 
-```
-Frontend (Next.js Dashboard)
-        ↓
-FastAPI OpenEnv API
-        ↓
-Environment Simulation
-        ↓
-ML + LLM Agent (inference.py)
-        ↓
-Reward Engine + Graders
-        ↓
-Replay + Metrics + Leaderboard
-```
-
----
-
-## ⚙️ Core Features
-
-### ✅ OpenEnv Environment
-
-* Fully compliant with OpenEnv standards
-* Supports:
-
-  * `reset()`
-  * `step(action)`
-  * `state()`
-
----
-
-### 🧩 Task System (3+ Tasks)
-
-1. **Email Retrieval**
-
-   * Find email from a specific sender
-
-2. **Meeting Scheduling**
-
-   * Extract details and create calendar events
-
-3. **Document Organization**
-
-   * Move files to correct folders
-
----
-
-### 🧮 Reward System
+All tasks use **partial-credit grading** with normalized scores:
 
 | Action             | Reward |
 | ------------------ | ------ |
-| Correct navigation | +0.2   |
-| Correct action     | +0.3   |
-| Task completion    | +1.0   |
-| Wrong action       | -0.1   |
+| Correct navigation | +0.20  |
+| Correct action     | +0.30  |
+| Task completion    | +1.00  |
+| Incorrect action   | -0.10  |
+| Invalid navigation | -0.20  |
 
-✔ Normalized between 0.0 – 1.0
-
----
-
-### 📊 Graders
-
-Each task includes automated grading:
-
-* ✅ Success → 1.0
-* ⚠ Partial → 0.5
-* ❌ Failure → 0.0
+✔ Final score always in **[0.0 – 1.0]**
 
 ---
 
-### 🤖 LLM Agent (inference.py)
-
-* Uses OpenAI-compatible API
-* Generates actions dynamically
-* Interacts with environment step-by-step
-
----
-
-### 🔁 Episode Replay System
-
-* Tracks all agent actions
-* Displays:
-
-  * Step number
-  * Action
-  * Reward
-
----
-
-### 📈 Metrics & Leaderboard
-
-Tracks:
-
-* Success rate
-* Average reward
-* Episode performance
-
-Leaderboard compares agent performance.
-
----
-
-### 🎮 Interactive Dashboard (Frontend)
-
-Built with Next.js + Tailwind:
-
-* Real-time environment state
-* Manual action execution
-* Demo mode
-* Replay visualization
-* Metrics & leaderboard
-
----
-
-### ⚡ Demo Mode
-
-One-click AI execution:
-
-* Runs full episode automatically
-* Displays actions + rewards
-
----
-
-## 🔗 API Endpoints
+## ⚙️ OpenEnv API
 
 | Endpoint          | Method | Description       |
 | ----------------- | ------ | ----------------- |
@@ -165,134 +70,120 @@ One-click AI execution:
 
 ---
 
-## 🧠 ML Pipeline
+## 🔄 Agent Interaction Flow
 
-* Pre-trained model
-* Feature preprocessing (scaling + encoding)
-* Consistent inference pipeline
-* Real-time prediction support
-
-✔ Ensures training and inference consistency
+1. `POST /reset` → get initial observation
+2. Agent decides action
+3. `POST /step` → receive reward + next state
+4. Repeat until `done=True`
 
 ---
 
-## 🐳 Docker Support
+## 🧩 Key Features
 
-Fully containerized:
-
-```bash
-docker build -t openenv-env .
-docker run -p 7860:7860 openenv-env
-```
-
----
-
-## ☁️ Deployment
-
-### 🔹 Hugging Face Spaces
-
-* Backend API deployed
-* `/reset` endpoint validated
-
-### 🔹 Vercel
-
-* Frontend dashboard deployed
-* Connected via API
+* ✅ OpenEnv-compliant environment
+* ✅ Real-world workspace simulation
+* ✅ Multi-step task system
+* ✅ Automated graders with partial scoring
+* ✅ Replay logging system
+* ✅ Metrics + leaderboard tracking
+* ✅ LLM-compatible inference pipeline
+* ✅ Live dashboard visualization
 
 ---
 
-## 🚀 How to Run Locally
+## 🤖 Inference (Agent Execution)
 
-### 1️⃣ Backend
-
-```bash
-pip install -r requirements.txt
-uvicorn server:app --host 0.0.0.0 --port 8000
-```
-
----
-
-### 2️⃣ Frontend
-
-```bash
-npm install
-npm run dev
-```
-
-Set environment variable:
-
-```bash
-NEXT_PUBLIC_API_URL=https://open-ev-hackathon-api-server-ifc38anpb-mohan010105s-projects.vercel.app/
-```
-
----
-
-### 3️⃣ Run Agent
+Run the agent:
 
 ```bash
 python inference.py
 ```
 
----
-
-## ⚙️ Configuration
-
 Environment variables:
 
-* `API_BASE_URL`
-* `MODEL_NAME`
-* `HF_TOKEN`
+```bash
+API_BASE_URL=https://mohanit007-open-ev-environment.hf.space
+MODEL_NAME=gpt-4o-mini
+HF_TOKEN=your_token
+```
+
+---
+
+## 🐳 Deployment (Hugging Face Spaces)
+
+This project is deployed using **Docker**.
+
+### Required files:
+
+* Dockerfile
+* requirements.txt
+* server.py
+* openenv.yaml
+* inference.py
+
+The app runs on:
+
+```
+http://0.0.0.0:7860
+```
+
+---
+
+## 📁 Project Structure
+
+```
+openenv-workspace-env/
+├── server.py
+├── inference.py
+├── openenv.yaml
+├── Dockerfile
+├── requirements.txt
+│
+├── env/
+├── utils/
+├── replay/
+├── dashboard/
+```
 
 ---
 
 ## 🧪 Validation Checklist
 
-✔ OpenEnv API working
-✔ Docker build successful
-✔ HuggingFace deployment live
-✔ inference.py runs without error
+✔ `/reset` returns valid JSON
+✔ `/step` executes correctly
+✔ Rewards between 0.0–1.0
 ✔ 3+ tasks implemented
-✔ rewards normalized
-✔ runtime < 20 min
+✔ inference.py runs without error
+✔ Docker builds successfully
+✔ Space returns HTTP 200
 
 ---
 
-## 🏆 Key Highlights
+## 🚀 Live Demo
 
-* Real-world AI environment simulation
-* LLM-driven agent interaction
+👉 https://mohanit007-open-ev-environment.hf.space
+
+---
+
+## 🏆 Highlights
+
+* Real-world AI training environment
+* Fully API-driven OpenEnv system
+* LLM + RL compatible
 * Interactive dashboard
-* Replay + metrics + leaderboard
-* Fully deployable system
-
----
-
-## 🔮 Future Improvements
-
-* Multi-agent collaboration
-* Advanced RL training
-* More complex workspace scenarios
+* Production-ready deployment
 
 ---
 
 ## 👨‍💻 Author
 
-Mohan Raj S
-Mohan ram B
+Mohan Raj
 
 ---
 
 ## ⭐ Conclusion
 
-This project demonstrates how AI agents can be trained in structured environments to perform real-world tasks using OpenEnv standards.
+This project demonstrates how AI agents can operate in structured environments to complete real-world tasks using reinforcement learning and LLM reasoning.
 
-It combines:
-
-✔ Reinforcement Learning
-✔ LLM-based reasoning
-✔ System design
-✔ Real-time visualization
-
----
-
-🔥 **A complete AI training platform — not just a prototype.**
+🔥 **A complete OpenEnv training platform — not just a demo.**
