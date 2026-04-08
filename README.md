@@ -1,5 +1,5 @@
 ---
-title: Open_EV_Environment
+title: ClipQualityEnv
 emoji: 🎧
 colorFrom: blue
 colorTo: blue
@@ -8,13 +8,13 @@ app_port: 7860
 pinned: false
 ---
 
-# Open_EV_Environment — Meta PyTorch OpenEnv Hackathon
+# ClipQualityEnv — Meta PyTorch OpenEnv Hackathon
 
-[![Hugging Face Space](https://img.shields.io/badge/🤗%20HF%20Space-Running-green)](https://huggingface.co/spaces/visshaalpvt/support-agent-env)
+[![Hugging Face Space](https://img.shields.io/badge/🤗%20HF%20Space-Running-green)](https://huggingface.co/spaces/elix3r/clip-quality-env3)
 [![GitHub](https://img.shields.io/badge/GitHub-Public-blue)](https://github.com/mohan010105/Open_EV_hackathon.git)
 
 Overview
-SupportAgentEnv is a reinforcement learning evaluation environment for the Meta PyTorch OpenEnv Hackathon. It tests an LLM agent's ability to act as an automated customer support agent across three progressively harder tasks.
+ClipQualityEnv is a reinforcement learning evaluation environment for the Meta PyTorch OpenEnv Hackathon. It tests an LLM agent's ability to act as an automated customer support agent across three progressively harder tasks.
 
 The agent receives a customer support ticket and must:
 
