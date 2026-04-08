@@ -11,7 +11,7 @@ pinned: false
 
 # OpenEnv Workspace Assistant — Meta OpenEnv Hackathon
 
-[![Hugging Face Space](https://img.shields.io/badge/🤗%20HF%20Space-Running-green)](https://huggingface.co/spaces/visshaalpvt/support-agent-env)
+[![Hugging Face Space](https://img.shields.io/badge/🤗%20HF%20Space-Running-green)](https://huggingface.co/spaces/mohanit007/open-ev-environment)
 [![GitHub](https://img.shields.io/badge/GitHub-Public-blue)](https://github.com/mohan010105/Open_EV_hackathon)
 
 ---
@@ -82,7 +82,7 @@ uvicorn server:app --port 7860
 
 ## 🔗 Live Demo
 
-https://mohanit007-open-ev-environment.hf.space
+https://huggingface.co/spaces/visshaalpvt/support-agent-env
 
 ---
 
